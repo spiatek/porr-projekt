@@ -4,12 +4,26 @@
 
 #include "read_network.c"
 
+#include "queue.c"
+#include "list.c"
+
+ #ifdef _OPENMP
+ # include <omp.h>
+ #endif
+
 #define INF		9999999
 
-int auction_search(int *pr, int *P, int (*a)[2], int nodes, int arcs, int s, int t)
+int auction_search(int *pr, int *P, int (*a)[2], int *fpr, omp_lock_t* pmux, int nodes, int arcs, int s, int t)
 {
 	int i, length = 1, j = t, k, l;
 	int la, maxla, argmaxla, cost, path_cost;
+
+	// by OL ******************************************************!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	int index = -1;
+	int cost = -1;
+	List list = createList();
+
+
 	if(s == t) {
 		printf("s = t, brak sciezki\n");
 		return 0;
@@ -32,7 +46,26 @@ int auction_search(int *pr, int *P, int (*a)[2], int nodes, int arcs, int s, int
 		return 0;
 	}
 
+	//dodanie head do listy **************************************************************************************************************************!!!!!!!!!!!!!
+	list.add(&list, t);
+
 	while(P[s] == INF) {
+
+		//sprawdzanie wynikow z innych watkow
+		if (list.isEmpty(&list) == 0)
+		{
+			list->setCurrToHead(&list);
+			do
+			{
+				index = list->getCurr(&list);
+				if (fpr[index] != INF)
+				{
+					//zwraca sume kosztu sciezki do i-tego wezla i policzonej w innym watku sciezki z i-tego do s, konczy prace funkcji
+					return fpr[index] + list->getCurrValue(&list);
+				}
+			} while (list->getNext(&list) != -1);
+		}
+
 		//printf("Sciezka: ");
 		//for(i = 0; i < nodes; i++) {
 		//	printf("%d ", P[i]);
@@ -72,6 +105,10 @@ int auction_search(int *pr, int *P, int (*a)[2], int nodes, int arcs, int s, int
 			pr[j] = maxla;
 			if(j != t) {
 				P[j] = INF;
+				// usuwanie wezla i zdejmowanie lock********************************************************************************************!!!!!!!!!!!!!!!!!!!!
+				list.remove(&list, j);
+				omp_unset_lock(&(pmux[j]));
+
 				length = length - 1;
 				k = j;					//zapamietuje j jako k
 				for(i = 0; i < nodes; i++) {		//wraca do poprzedniego j
@@ -99,13 +136,120 @@ int auction_search(int *pr, int *P, int (*a)[2], int nodes, int arcs, int s, int
 			P[argmaxla] = length;
 			j = argmaxla;
 			path_cost = path_cost + cost;
+			
+			
+			// dodawanie wezla do list i ustawianie lock, 0 gdy juz ktos blokuje **************************************************************************!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			lockResult = omp_test_lock(&(pmux[j]));
+			if (lockResult == 0)
+			{
+				//odlokowanie blokowanych wezlow
+				if (list.isEmpty(&list) == 0)
+				{
+					list->setCurrToHead(&list);
+					do
+					{
+						index = list->getCurr(&list);
+						omp_unset_lock(&(pmux[index]));
+					} while (list->getNext(&list) != -1);
+				}
+
+				//czyszczenie listy
+				list->clear(&list);
+
+				return -2;
+			}
+			else if (lockResult == 1)
+			{
+				list->add(&list, j, path_cost);
+			}
+
+			
 			length = length + 1;
 			if(argmaxla == s)
-				return 1;
+			{
+				//odlobkowanie wszystkich blokad
+				if (list.isEmpty(&list) == 0)
+				{
+					list->setCurrToHead(&list);
+					do
+					{
+						index = list->getCurr(&list);
+						omp_unset_lock(&(pmux[index]));
+					} while (list->getNext(&list) != -1);
+				}
+
+				//wyczyszczenie listy
+				list->clear(&list);
+
+				return path_cost;
+
+			}
 		}
 	}
 	return 0;
 }
+
+
+int auction_omp_search(int *pr, int *P, int (*a)[2], int nodes, int arcs, int s, int t)
+{
+	int result;
+	int item;
+	omp_lock_t pmux[Nodes];
+	Queue queue = createQueue();
+	int finalResult = -1;
+
+	//#pragma omp parallel for
+	for(int i = 0; i < NODES; ++i)
+	{
+		fpr[i] = INF;
+	}
+
+	//inicjalizacja kolejki
+	for(int i = 0; i < NODES; ++i)
+	{
+		queue.push(&queue, i);
+	}
+
+	#pragma omp parallel do private(result, item, pr, P) shared(pmux, fpr)
+	do
+	{
+		//dodac synchronizacje kolejki
+		item = queue.pop(&queue);
+		result = auction_search(pr, P, a, fpr, pmux, nodex, arcs, s, item);
+			
+		if (result == -2)
+		{
+			//wstaw na koniec kolejki gdy jest blokada
+			queue.push(&queue, item);
+		}
+		else if (result == -1)
+		{
+			//usun z kolejki, usuwamy z kolejki robiac pop wiec nic tutaj nie trzeba robic
+			//nothing to write
+		}
+		else if (result == 0)
+		{
+			//s==t czyli usuwam z kolejki, usuwamy z kolejki robiac pop wiec nic tutaj nie trzeba robic
+			//nothing to write
+		}
+		else
+		{
+			//wstaw wynik do tablicy fpr
+			fpr[item] = result;
+			
+			if (item == t)
+			{
+				finalResult = result;
+				break;
+			}
+		}
+	} while (queue.size != 0);
+ 
+	queue.clear(&queue);
+
+	return finalResult;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -128,3 +272,4 @@ int main(int argc, char* argv[])
 	//printf("\n");
 	return 0;
 }
+
