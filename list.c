@@ -1,3 +1,6 @@
+#ifndef _LIST_C
+#define _LIST_C
+
 #include <stdio.h>
 #include <stdlib.h>
 /**
@@ -15,7 +18,7 @@
  */
 typedef struct NodeL {
     int item;
-	int cost;
+	int value;
     struct NodeL* next;
 	struct NodeL* prev;
 } NodeL;
@@ -28,11 +31,12 @@ typedef struct List {
     NodeL* head;
 	NodeL* curr;
 
-    void (*add) (struct List*, int); // add item to tail
-    void (*remove) (struct List*, int);
+    void (*add) (struct List*, int, int); // add item to tail
+    void (*remove_) (struct List*, int);
     int (*getNext) (struct List*);
 	int (*getPrev) (struct List*);
 	int (*getCurr) (struct List*);
+	int (*getCurrValue) (struct List*);
 	int (*setCurrTo) (struct List*, int);
 	void (*setCurrToHead) (struct List*);
 	void (*clear) (struct List*);
@@ -44,17 +48,17 @@ typedef struct List {
  * both list->head and list->tail will point to it,
  * otherwise the oldtail->next and tail will point to it.
  */
-void add (List* list, int item, int cost);
-void remove (List* list, int item);
-int getNext (List* list);
-int getPrev (List* list);
-int getCurr (List* list);
-int getCurrValue (List* list);
-int setCurrTo (List* list, int item);
-void setCurrToHead (List* list);
-void clear (List* list);
-int isEmpty (List* list);
-
+/*void _add (List* list, int item, int cost);
+void _remove_ (List* list, int item);
+int _getNext (List* list);
+int _getPrev (List* list);
+int _getCurr (List* list);
+int _getCurrValue (List* list);
+int _setCurrTo (List* list, int item);
+void _setCurrToHead (List* list);
+void _clear (List* list);
+int _isEmpty (List* list);
+*/
 
 
 /**
@@ -62,39 +66,39 @@ int isEmpty (List* list);
  * both List->head and List->tail will point to it,
  * otherwise the oldtail->next and tail will point to it.
  */
-void add (List* list, int item, int cost) {
+void _add (List* list, int item, int cost) {
     // Create a new node
     NodeL* n = (NodeL*) malloc (sizeof(NodeL));
     n->item = item;
-	n->cost = cost;
+	n->value = cost;
     n->next = NULL;
-	n->prev = NULL:
+	n->prev = NULL;
 
     if (list->head == NULL) { // no head
         list->head = n;
 		list->head->prev = n;
-		curr = head;
+		list->curr = list->head;
     } else{
 		NodeL* tmp = list->head->prev;
 		n->prev = tmp;
 		tmp->next = n;
 		
 		list->head->prev = n;
-		curr = n;
+		list->curr = n;
     }
 }
 
-void remove (List* list, int item) {
+void _remove_ (List* list, int item) {
     // Remove the node
 	int result = 0;
 	NodeL* n = NULL;
-	result = setCurrTo(list, item);
+	result = list->setCurrTo(list, item);
 
-	if (curr == head)
+	if (list->curr == list->head)
 	{
-		free(head);
-		head = NULL;
-		curr = NULL;
+		free(list->head);
+		list->head = NULL;
+		list->curr = NULL;
 		return;
 	}
 
@@ -108,9 +112,9 @@ void remove (List* list, int item) {
 	}
 }
 /**
- * Return and remove the first item.
+ * Return and remove_ the first item.
  */
-int getNext (List* list) {
+int _getNext (List* list) {
     
 	int item;
 	
@@ -130,7 +134,7 @@ int getNext (List* list) {
 	return item;
 }
 
-int getPrev (List* list) {
+int _getPrev (List* list) {
     
 	int item = list->curr->item;
 	
@@ -144,14 +148,14 @@ int getPrev (List* list) {
 	}
 	else
 	{
-		curr = curr->prev;
+		list->curr = list->curr->prev;
 	}
 	return item;
 }
 
 
 
-int getCurr (List* list) {
+int _getCurr (List* list) {
 
 	if (list->curr == NULL)
 		return -1;
@@ -159,7 +163,7 @@ int getCurr (List* list) {
 		return list->curr->item;
 }
 
-int getCurrValue (List* list) {
+int _getCurrValue (List* list) {
 
 	if (list->curr == NULL)
 		return -1;
@@ -167,14 +171,14 @@ int getCurrValue (List* list) {
 		return list->curr->value;
 }
 
-int setCurrTo (List* list, int item)
+int _setCurrTo (List* list, int item)
 {
     list->setCurrToHead(list);
 
 	if (list->curr == NULL)
 		return -1;
 
-	while (list->curr->next != null)
+	while (list->curr->next != NULL)
 	{
 		if (list->curr->item == item)
 		{
@@ -186,12 +190,12 @@ int setCurrTo (List* list, int item)
 	return -1;
 }
 
-void setCurrToHead (List* list)
+void _setCurrToHead (List* list)
 {
     list->curr = list->head;
 }
 
-void clear (List* list)
+void _clear (List* list)
 {
 	NodeL* tmp = NULL;
     list->setCurrToHead(list);
@@ -199,16 +203,16 @@ void clear (List* list)
 	if (list->curr == NULL)
 		return;
 
-	while (list->curr->next != null)
+	while (list->curr->next != NULL)
 	{
 		tmp = list->curr->next;
-		free(curr);
-		curr = tmp;
+		free(list->curr);
+		list->curr = tmp;
 	}
 }
 
 
-int isEmpty(List* list)
+int _isEmpty(List* list)
 {
 	if (list->head == NULL)
 		return 1;
@@ -217,7 +221,7 @@ int isEmpty(List* list)
 }
 
 /**
- * Return but not remove the first item.
+ * Return but not remove_ the first item.
  */
 /**
 
@@ -228,15 +232,17 @@ List createList () {
     List list;
     list.head = NULL;
 	list.curr = NULL;
-    list.add = &add;
-    list.remove = &remove;
-    list.getNext = &getNext;
-    list.getPrev = &getPrev;
-	list.getCurr = &getCurr;
-	list.getCurrValue = &getCurrValue;
-	list.setCurrTo = &setCurrTo;
-	list.setCurrToHead = &setCurrToHead;
-	list.clear = &clear;
-	list.isEmpty = &isEmpty;
+    list.add = &_add;
+    list.remove_ = &_remove_;
+    list.getNext = &_getNext;
+    list.getPrev = &_getPrev;
+	list.getCurr = &_getCurr;
+	list.getCurrValue = &_getCurrValue;
+	list.setCurrTo = &_setCurrTo;
+	list.setCurrToHead = &_setCurrToHead;
+	list.clear = &_clear;
+	list.isEmpty = &_isEmpty;
     return list;
 }
+
+#endif

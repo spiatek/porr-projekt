@@ -1,0 +1,31 @@
+CC=gcc
+CFLAGS = -fopenmp -O #-DDIMACS std=c99
+LFLAGS = -lm
+OBJS = auction.o# read_network.o #list.o queue.o #netgen.o index.o random.o
+
+auction: $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LFLAGS) 
+
+auction.o: auction.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+read_network.o: read_network.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+list.o: list.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+queue.o: queue.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+#netgen.o: netgen.c
+#	$(CC) $(CFLAGS) -c $< -o $@
+
+#index.o: index.c
+#	$(CC) $(CFLAGS) -c $< -o $@
+
+#random.o: random.c
+#	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f *.o

@@ -1,3 +1,6 @@
+#ifndef _QUEUE_C
+#define _QUEUE_C
+
 #include <stdio.h>
 #include <stdlib.h>
 /**
@@ -34,7 +37,7 @@ typedef struct Queue {
     // display all element in queue
     void (*display) (struct Queue*);
 
-	void (*clear) (struct Queue*);
+	void (*queue_clear) (struct Queue*);
     // size of this queue
     int size;
 } Queue;
@@ -43,21 +46,21 @@ typedef struct Queue {
  * both queue->head and queue->tail will point to it,
  * otherwise the oldtail->next and tail will point to it.
  */
-void push (Queue* queue, int item);
+void _push (Queue* queue, int item);
 /**
  * Return and remove the first item.
  */
-int pop (Queue* queue);
+int _pop (Queue* queue);
 /**
  * Return but not remove the first item.
  */
-int peek (Queue* queue);
+int _peek (Queue* queue);
 /**
  * Show all items in queue.
  */
-void display (Queue* queue);
+void _display (Queue* queue);
 
-void clear (Queue* queue);
+void _queue_clear (Queue* queue);
 /**
  * Create and initiate a Queue
  */
@@ -89,7 +92,7 @@ int main () {
     queue.display(&queue);
     printf("push item 6\n");
     queue.push(&queue, 6);
-
+/
     queue.display(&queue);
     system("PAUSE");
 }
@@ -101,7 +104,7 @@ int main () {
  * both queue->head and queue->tail will point to it,
  * otherwise the oldtail->next and tail will point to it.
  */
-void push (Queue* queue, int item) {
+void _push (Queue* queue, int item) {
     // Create a new node
     Node* n = (Node*) malloc (sizeof(Node));
     n->item = item;
@@ -120,7 +123,7 @@ void push (Queue* queue, int item) {
 /**
  * Return and remove the first item.
  */
-int pop (Queue* queue) {
+int _pop (Queue* queue) {
     // get the first item
     Node* head = queue->head;
     int item = head->item;
@@ -134,14 +137,14 @@ int pop (Queue* queue) {
 /**
  * Return but not remove the first item.
  */
-int peek (Queue* queue) {
+int _peek (Queue* queue) {
     Node* head = queue->head;
     return head->item;
 }
 /**
  * Show all items in queue.
  */
-void display (Queue* queue) {
+void _display (Queue* queue) {
     printf("\nDisplay: ");
     // no item
     if (queue->size == 0)
@@ -160,13 +163,13 @@ void display (Queue* queue) {
     printf("\n\n");
 }
 
-void clear (Queue* queue)
+void _queue_clear (Queue* queue)
 {
 	Node* tmp = NULL;
     Node* curr = queue->head;
 
 
-	while (curr->next != null)
+	while (curr->next != NULL)
 	{
 		tmp = curr->next;
 		free(curr);
@@ -183,10 +186,12 @@ Queue createQueue () {
     queue.size = 0;
     queue.head = NULL;
     queue.tail = NULL;
-    queue.push = &push;
-    queue.pop = &pop;
-    queue.peek = &peek;
-    queue.display = &display;
-	queue.clear = &clear;
+    queue.push = &_push;
+    queue.pop = &_pop;
+    queue.peek = &_peek;
+    queue.display = &_display;
+	queue.queue_clear = &_queue_clear;
     return queue;
 }
+
+#endif
