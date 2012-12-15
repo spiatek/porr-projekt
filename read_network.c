@@ -65,7 +65,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 		exit(1);
 	}
 
-	*source = tmp;
+	*tail = tmp;
 
 	if((res = fgets(str, MAX_LINE_LENGTH, f)) == NULL) {
 		printf("Nie mozna odczytac linii 2.\n");
@@ -82,7 +82,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 		exit(1);
 	}
 
-	*tail = tmp - 1;
+	*source = tmp;
 
 	if((res = fgets(str, MAX_LINE_LENGTH, f)) == NULL) {
 		printf("Nie mozna odczytac linii 2.\n");
@@ -157,7 +157,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 
 	tmp = i + j;
 	for(i = 0; i < tmp; i++) {
-		//printf("%d %d\n", nettab[i][0], nettab[i][1]);
+		printf("%d %d\n", nettab[i][0], nettab[i][1]);
 	}
 
 	return 0;

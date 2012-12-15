@@ -1,0 +1,10 @@
+1) kompilacja netgen (makefile1)
+2) kompilacja auction (makefile)
+3) Zmodyfikować plik net_params (kolejno: seed, od nowej linii: numer problemu (nie trzeba zmieniać), liczba węzłów, liczba source (powinno być 1), tail (powinno być 1), liczba krawędzi, minimalny koszt krawędzi, maksymalny koszt krawędzi, suma kosztów wszystkich krawędzi, potem nieistotne.
+
+Przykładowa zawartość pliku net_params:
+13502460
+1 1500 1 1 3600 1 10000  1500000 0 0 0 0 0 0
+
+4) ./netgen < net_params > [plik_z_siecią]
+5) ./auction [nr_problemu] [liczba_krawędzi] [liczba_węzłów] [plik_z_siecią] > [plik_wyjściowy]

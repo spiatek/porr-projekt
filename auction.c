@@ -9,52 +9,64 @@
 
 #include <omp.h>
 
-#define INF		9999999
+#define INF 9999999
 
-int auction_search(int *pr, int *P, int (*a)[2], int *fpr, omp_lock_t* pmux, int nodes, int arcs, int s, int t)
+#define OMP 0
+#define SEQ 1
+#define SSE 2
+	
+int auction_search(int type, int *pr, int *P, int (*a)[2], int *fpr, omp_lock_t* pmux, int nodes, int arcs, int s, int t)
 {
 	int i, length = 1, j = t, k, l;
 	int la, maxla, argmaxla, cost, path_cost;
+	int cost_tab[nodes+1];
 
-	// by OL ******************************************************!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	int index = -1, lockResult = 0;
-
+	/* tylko Open MP */
+	int index = -1;
+	int lockResult = 0;
 	List list = createList();
-printf("W auction_search()\n");
 
+	/* sprawdzenie czy source jest jednoczesnie tail */
 	if(s == t) {
 		printf("s = t, brak sciezki\n");
 		return 0;
 	}
-	printf("W auction_search()\n");
-	for(i = 0; i < nodes; i++) {
-		P[i] = INF;		//sciezka: dla poszczegolnych wezlow wartosc to pozycja w sciezce
-		pr[i] = 0;		//ceny
+
+	/* wypelnienie wartosciami poczatkowymi tablicy ze sciezka, tablicy z cenami wezlow */
+	/* oraz tablicy z kosztami dojscia do wezlow w sciezce */
+	/* sciezka - dla poszczegolnych wezlow wartosc to pozycja w sciezce */
+	for(i = 0; i <= nodes; i++) {
+		P[i] = INF;
+		pr[i] = 0;
+		cost_tab[i] = 0;
 	}
-	printf("W auction_search()\n");
-	if(t >= 0 && t <= nodes) {
+
+	/* sprawdzenie czy t jest poprawne */
+	printf("%d!!!!!!!!!!!!!!!!!!!1\n", t);
+	if(t > 0 && t <= nodes) {
 		P[t] = 0;
 	}
 	else {
-		printf("Blad, t musi byc z zakresu 0..MAX-1\n");
+		printf("Blad, t musi byc z zakresu 1..nodes\n");
 		printf("t nodes %d %d\n", t, nodes);
 		return 0;
 	}
-	if(s < 0 || s > nodes) {
-		printf("Blad, s musi byc z zakresu 0..MAX-1\n");
+
+	/* sprawdzenie czy s jest poprawne */
+	if(s <= 0 || s > nodes) {
+		printf("Blad, s musi byc z zakresu 1..nodes\n");
 		printf("%d\n", s);
 		return 0;
 	}
 
-	//dodanie head do listy **************************************************************************************************************************!!!!!!!!!!!!!
-	list.add(&list, t, path_cost);
-	printf("W auction_search()\n");
+	/* dodanie head do listy */
+	if(type == OMP) {
+		list.add(&list, t, path_cost);
+	}
 
 	while(P[s] == INF) {
-	printf("W auction_search()\n");
-
-		//sprawdzanie wynikow z innych watkow
-		if (list.isEmpty(&list) == 0)
+		/* sprawdzanie wynikow z innych watkow */
+		if(type == OMP && list.isEmpty(&list) == 0)
 		{
 			list.setCurrToHead(&list);
 			do
@@ -62,21 +74,20 @@ printf("W auction_search()\n");
 				index = list.getCurr(&list);
 				if (fpr[index] != INF)
 				{
-					//zwraca sume kosztu sciezki do i-tego wezla i policzonej w innym watku sciezki z i-tego do s, konczy prace funkcji
+					/* fpr[index] - koszt sciezki do i-tego wezla */
+					/* list.getCurrValue(&list) - policzona w innym watku sciezka z i do s */
 					return fpr[index] + list.getCurrValue(&list);
 				}
 			} while (list.getNext(&list) != -1);
 		}
 
-		//printf("Sciezka: ");
-		//for(i = 0; i < nodes; i++) {
-		//	printf("%d ", P[i]);
-		//}
-		//printf("\n");
 		maxla = 0 - INF;
 		argmaxla = -1;
+		k = -1;
+
 		printf("j = %d\n", j);
-		k = -1;		//indeks poprzedzajacy luki wychodzace z j w tabeli nettab
+
+		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		for(i = 0; i < nodes+arcs; i++) {
 			if(a[i][0] == 0 && a[i][1] == j) {
 				k = i;
@@ -84,107 +95,124 @@ printf("W auction_search()\n");
 				break;
 			}
 		}
-		if(k != -1) {
+
+		/* wybor optymalnej krawedzi */
+		if(k != -1) {		//TODO: jesli k=-1, to trzeba koniecznie sie cofnac!!!
 			for(i = k + 1; i < nodes+arcs; i++) {
-				if(a[i][0] == 0) {			//przejrzano juz wszystkie luki
+
+				/* czy przejrzano juz wszystkie krawedzie */
+				if(a[i][0] == 0) {
 					break;
 				}
+
+				/* l - aktualnie przetwarzany potecjalny nastepny wierzcholek */
 				l = a[i][0];
-				la = pr[l] - a[i][1];		//cena - koszt dotarcia do wezla
-				//printf("la: %d %d %d\n", i, nettab[i][1], la);
-				//l = nettab[i][0];
-				if(la > maxla && P[l] == INF) {		//pomijane sa te, ktore juz sa w P
+
+				/* la - cena tego wierzcholka minus koszt dotarcia do niego */
+				la = pr[l] - a[i][1];
+				//printf("la: %d %d %d\n", i, a[i][1], la);
+
+				/* wierzcholki w sciezce nie moga sie powtarzac */
+				if(la > maxla && P[l] == INF) {
 					//printf("nowy max: %d %d\n", l, a[i][1]);
-					maxla = la;
-					argmaxla = l;			//numer wezla
-					cost = a[i][1];
+					maxla = la;		//nowy maksymalny la
+					argmaxla = l;		//numer wezla
+					cost = a[i][1];		//koszt potenjalnie dodawanej krawedzi
 				}
 			}
 		}
 		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
-		if(pr[j] > maxla || maxla == -INF) {
-			//printf("Contracting path\n");
-			pr[j] = maxla;
-			if(j != t) {
-				P[j] = INF;
-				// usuwanie wezla i zdejmowanie lock********************************************************************************************!!!!!!!!!!!!!!!!!!!!
-				list.remove_(&list, j);
-				omp_unset_lock(&(pmux[j]));
 
+		/* skrocenie sciezki */
+		if(k == 1 || pr[j] > maxla || maxla == -INF) {
+			
+			/* uaktualnienie ceny */
+			pr[j] = maxla;
+
+			/* sciezka jednoelementowa nie jest skracana */
+			if(j != t) {
+
+				/* uaktualnienie sciezki */
+				P[j] = INF;
 				length = length - 1;
-				k = j;					//zapamietuje j jako k
-				for(i = 0; i < nodes; i++) {		//wraca do poprzedniego j
+				path_cost = path_cost - cost_tab[length];
+				cost_tab[length] = 0;
+				
+				/* usuwanie wezla i zdejmowanie lock */
+				if(type == OMP) {
+					list.remove_(&list, j);
+					omp_unset_lock(&(pmux[j]));
+				}
+				
+				/* powrot do poprzedniego wierzcholka w sciezce (j), k - odcinany */
+				k = j;
+				for(i = 0; i < nodes; i++) {
 					if(P[i] == length - 1) {
 						j = i;
 						break;
 					}
 				}
-				for(i = 0; i < nodes+arcs; i++) {
-					if(a[i][0] == 0 && a[i][1] == j) {						
-						break;
-					}
-				}
-				while(1) {
-					i++;
-					if(a[i][0] == k) {
-						path_cost = path_cost - a[i][1];
-						break;
-					}
-				}
 			}
 		}
+		/* przedluzenie sciezki */
 		else {
-			//printf("Extending path\n");
 			P[argmaxla] = length;
 			j = argmaxla;
 			path_cost = path_cost + cost;
-			
-			
-			// dodawanie wezla do list i ustawianie lock, 0 gdy juz ktos blokuje **************************************************************************!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			lockResult = omp_test_lock(&(pmux[j]));
-			if (lockResult == 0)
-			{
-				//odlokowanie blokowanych wezlow
-				if (list.isEmpty(&list) == 0)
-				{
-					list.setCurrToHead(&list);
-					do
-					{
-						index = list.getCurr(&list);
-						omp_unset_lock(&(pmux[index]));
-					} while (list.getNext(&list) != -1);
-				}
-
-				//czyszczenie listy
-				list.clear(&list);
-
-				return -2;
-			}
-			else if (lockResult == 1)
-			{
-				list.add(&list, j, path_cost);
-			}
-
-			
+			cost_tab[length] = cost;
 			length = length + 1;
+	
+			/* dodawanie wezla do list i ustawianie lock, 0 gdy juz ktos blokuje */
+			if(type == OMP) {
+				lockResult = omp_test_lock(&(pmux[j]));
+				if (lockResult == 0)
+				{
+					//odlokowanie blokowanych wezlow
+					if (list.isEmpty(&list) == 0)
+					{
+						list.setCurrToHead(&list);
+						do
+						{
+							index = list.getCurr(&list);
+							omp_unset_lock(&(pmux[index]));
+						} while (list.getNext(&list) != -1);
+					}
+
+					//czyszczenie listy
+					list.clear(&list);
+
+					return -2;
+				}
+				else if (lockResult == 1)
+				{
+					list.add(&list, j, path_cost);
+				}
+			}
+
+			/* sciezka doszla do wierzcholka startowego => koniec */
 			if(argmaxla == s)
 			{
-				//odlobkowanie wszystkich blokad
-				if (list.isEmpty(&list) == 0)
-				{
-					list.setCurrToHead(&list);
-					do
-					{
-						index = list.getCurr(&list);
-						omp_unset_lock(&(pmux[index]));
-					} while (list.getNext(&list) != -1);
+				if(type == SEQ) {
+					return 0;
 				}
+				else if(type == OMP) {
+					
+					/* odlobkowanie wszystkich blokad */
+					if (list.isEmpty(&list) == 0)
+					{
+						list.setCurrToHead(&list);
+						do
+						{
+							index = list.getCurr(&list);
+							omp_unset_lock(&(pmux[index]));
+						} while (list.getNext(&list) != -1);
+					}
 
-				//wyczyszczenie listy
-				list.clear(&list);
+					/* wyczyszczenie listy */
+					list.clear(&list);
 
-				return path_cost;
-
+					return path_cost;
+				}
 			}
 		}
 	}
@@ -241,7 +269,7 @@ int auction_omp_search(int *pr, int *P, int (*a)[2], int nodes, int arcs, int s,
 			omp_unset_lock(&qmux);
 
 			printf("Auction_search\n");
-			result = auction_search(pr, P, a, fpr, pmux, nodes, arcs, s, item);
+			result = auction_search(OMP, pr, P, a, fpr, pmux, nodes, arcs, s, item);
 			printf("Result: %d\n", result);			
 
 			if (result == -2)
@@ -295,21 +323,47 @@ int main(int argc, char* argv[])
 {
 	double time;
 	int *prices, *P;
-	int source, tail, nodes, arcs;
+	int task, source, tail, nodes, arcs;
 	int (*network)[2];
-	arcs = atoi(argv[1]);
-	nodes = atoi(argv[2]);
+	clock_t start, end;
+	char *filename;
+
+	printf("Hello\n");
+
+	task = atoi(argv[1]);
+	arcs = atoi(argv[2]);
+	nodes = atoi(argv[3]);
+	filename = argv[4];
+
 	printf("P-1\n");
+
 	network = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
-	read_network("outp", &source, &tail, &nodes, &arcs, network);
-	prices = (int*)malloc(nodes*sizeof(int));
-	P = (int*)malloc(nodes*sizeof(int));
+	read_network(filename, &source, &tail, &nodes, &arcs, network);
+
+	prices = (int*)malloc((nodes+1)*sizeof(int));
+	P = (int*)malloc((nodes+1)*sizeof(int));
 	printf("P0\n");
-	omp_set_num_threads(1);
+
+	start = clock();
+
+	if(task == OMP) {
+		omp_set_num_threads(1);
 	//auction_search(prices, P, network, nodes, arcs, source, tail);
-	auction_omp_search(prices, P, network, nodes, arcs, source, tail); 
-	time = clock()/CLOCKS_PER_SEC;
-	printf("Czas wykonania programu: %f\n", time);
+		auction_omp_search(prices, P, network, nodes, arcs, source, tail);
+	}
+	else if(task == SEQ) {
+		auction_search(SEQ, prices, P, network, NULL, NULL, nodes, arcs, source, tail);
+	}
+	else {
+		printf("Nieprawidlowy typ zadania\n");
+		return 1;
+	}
+	
+	end = clock();
+
+	time = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+	printf("Czas wykonania programu: %5.1f [ms]\n", time*1000);
 	//for(i = 0; i < nodes; i++) {
 	//	printf("%d ", P[i]);
 	//}
