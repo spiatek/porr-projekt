@@ -181,7 +181,7 @@ int sse_auction_search(int *pr, int *P, int *a0, int *a1, int *ai0, int *ai1, in
 
 int omp_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *fpr, omp_lock_t* pmux, int nodes, int arcs, int s, int t)
 {
-	int i, length = 1, j = t, k, l;
+	int i, length = 1, j = t, k, m, l;
 	int la, maxla, argmaxla, cost, path_cost;
 	int cost_tab[nodes+1];
 
@@ -223,24 +223,37 @@ int omp_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *fpr, omp
 		argmaxla = -1;
 		k = -1;
 
-		for(i = 0; i < nodes+arcs; i++) {
-			if(a[i][0] == 0 && a[i][1] == j) {
-				k = i;
-				break;
+		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
+		for(i = 0; i < nodes; i++) {
+			if(ai[i][0] == j) {
+				k = ai[i][1];		//k - indeks startowy krawedzi wychodzacych z j
+				//printf("i = %d ", i);
+				if(i < nodes - 1) {
+					m = ai[i+1][1];
+				}
+				else {
+					m = arcs;
+				}
 			}
 		}
 
+		/* wybor optymalnej krawedzi */
 		if(k != -1) {
-			for(i = k + 1; i < nodes+arcs; i++) {
-				if(a[i][0] == 0) {
-					break;
-				}
+			for(i = k; i < m; i++) {
+
+				/* l - aktualnie przetwarzany potecjalny nastepny wierzcholek */
 				l = a[i][0];
+
+				/* la - cena tego wierzcholka minus koszt dotarcia do niego */
 				la = pr[l] - a[i][1];
+				//printf("la: %d %d %d\n", i, a[i][1], la);
+
+				/* wierzcholki w sciezce nie moga sie powtarzac */
 				if(la > maxla && P[l] == INF) {
-					maxla = la;		
-					argmaxla = l;	
-					cost = a[i][1];
+					//printf("nowy max: %d %d\n", l, a[i][1]);
+					maxla = la;		//nowy maksymalny la
+					argmaxla = l;		//numer wezla
+					cost = a[i][1];		//koszt potenjalnie dodawanej krawedzi
 				}
 			}
 		}
