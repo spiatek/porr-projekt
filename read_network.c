@@ -5,7 +5,7 @@
 #define MINCF		0
 #define ASN		1
 
-int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, int (*nettab)[2])
+int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, int (*nettab)[2], int(*netind)[2])
 {
 	int type;				//typ sieci (MIN - min cost flow, ASN - assignment)
 	char *res, str[100], c;
@@ -99,9 +99,11 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 		exit(1);
 	}
 
-	nettab[0][0] = 0;
-	nettab[0][1] = tmp;
-	
+	//nettab[0][0] = 0;
+	//nettab[0][1] = tmp;
+	netind[0][0] = tmp;
+	netind[0][1] = 0;
+
 	if(type == MINCF) {
 		if((fscanf(f, " %d %d %d %d", &tmp, &tmp1, &tmp2, &tmp3)) == 0) {
 			printf("Nie mozna odczytac znaku 3.\n");
@@ -115,8 +117,10 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 		}
 	}
 	
-	nettab[1][0] = tmp;
-	nettab[1][1] = tmp1;
+	//nettab[1][0] = tmp;
+	//nettab[1][1] = tmp1;
+	nettab[0][0] = tmp;
+	nettab[0][1] = tmp1;
 
 	for(i = 1, j = 1; i + j < (*arcs) + (*nodes); i++) {
 		if((res = fgets(str, MAX_LINE_LENGTH, f)) == NULL) {
@@ -145,20 +149,24 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 			}
 		}
 		if(tmp != j) {
-			nettab[i+j][0] = 0;
-			nettab[i+j][1] = tmp;
-			j++;
+			netind[j][0] = tmp;
+			netind[j][1] = i;
+			//nettab[i+j][0] = 0;
+			//nettab[i+j][1] = tmp;
+			j = tmp;
 		}
-		nettab[i+j][0] = tmp1;
-		nettab[i+j][1] = tmp4;
+		//nettab[i+j][0] = tmp1;
+		//nettab[i+j][1] = tmp4;
+		nettab[i][0] = tmp1;
+		nettab[i][1] = tmp4;
 	}
 
 	fclose(f);
 
-	tmp = i + j;
-	for(i = 0; i < tmp; i++) {
-		printf("%d %d\n", nettab[i][0], nettab[i][1]);
-	}
+	//tmp = i + j;
+	//for(i = 0; i <= tmp; i++) {
+	//	printf("%d %d\n", nettab[i][0], nettab[i][1]);
+	//}
 
 	return 0;
 }

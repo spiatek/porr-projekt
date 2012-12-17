@@ -121,6 +121,11 @@ int main(int argc, char* argv[])
 	//for(i = 0; i <= nodes; i++) {
        	//	printf("%d\n", distance[i]);
 	//}
+
+	free(network);
+	free(preced);
+	free(distance);
+
 	return 0;
 }
 
