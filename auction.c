@@ -1,7 +1,8 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <xmmintrin.h>
+#include <emmintrin.h>
+#include <stdint.h>
 
 #include "read_network.c"
 
@@ -44,20 +45,40 @@ int check_s_t(int source, int tail, int *P, int nodes)
 	return 0;
 }
 
-int sse_auction_search(int *pr, int *P, int *a0, int *a1, int *ai0, int *ai1, int nodes, int arcs, int s, int t)
+void print128_num(__m128i var)
 {
-	int i, length = 1, j = t, k, l, m;
-	int la, maxla, argmaxla, cost, path_cost;
+	uint32_t *val = (uint32_t*) &var;
+	printf("Numerical: %i %i %i %i\n", val[0], val[1], val[2], val[3]);
+}
+
+void print64_num(__m128i var)
+{
+	uint16_t *val = (uint16_t*) &var;
+	printf("Numerical: %i %i %i %i %i %i %i %i\n", val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
+}
+
+int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, int nodes, int arcs, int s, int t)
+{
+	int i __attribute__ ((aligned (16))) = 0;
+	int k __attribute__ ((aligned (16))) = 0;
+	int m __attribute__ ((aligned (16))) = 0;
+	int argmaxla __attribute__ ((aligned (16))) = 0;
+	int cost __attribute__ ((aligned (16))) = 0;
+	int maxla __attribute__ ((aligned (32))) = 0;
+	int length = 1, j = t, l, z;
+	int la, path_cost;
 	int cost_tab[nodes+1];
 
-	__m128i a0sse, a1sse, ai0sse, ai1sse, ai1sse1, I, J, K, M;
+	__m128i a0sse, a1sse, ai0sse, ai1sse, ai1sse1, I, J, K, M, then, nodes;
 	__m128i ARCS, MNODES, INFINITE, prsse, Psse, MAXLA, ARGMAXLA, LA, mask1, mask2, mask3, COST;
 			
 	for(i = 0; i <= nodes; i++) {
-		P[i] = INF;
+		//P[i] = INF;
 		pr[i] = 0;
 		cost_tab[i] = 0;
 	}
+
+	printf("%Psse: %d\n", P[0]);
 
 	if(check_s_t(s, t, P, nodes) != 0) {
 		return 1;
@@ -73,10 +94,10 @@ int sse_auction_search(int *pr, int *P, int *a0, int *a1, int *ai0, int *ai1, in
 
 		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		/*for(i = 0; i < nodes; i++) {
-			if(ai0[i] == j) {
-				k = ai1[i];
-				if(i == nodes-1) {
-					m = ai1[i+1];
+			if(a0[i] == j) {
+				k = a1[i];
+				if(i != nodes-1) {
+					m = a1[i+1];
 				else {
 					m = arcs;
 				}
@@ -85,22 +106,67 @@ int sse_auction_search(int *pr, int *P, int *a0, int *a1, int *ai0, int *ai1, in
 		*/
 		J = _mm_set1_epi32(j);
 		K = _mm_set1_epi32(k);
+		M = _mm_set1_epi32(m);
 		MNODES = _mm_set1_epi32(nodes-1);
 		ARCS = _mm_set1_epi32(arcs);
-		for(i = 0; i < nodes; i+=4) {
-			ai0sse = _mm_load_si128(&ai0[i]);
-			ai1sse = _mm_load_si128(&ai1[i]);
-			ai1sse1 = _mm_load_si128(&ai1[i+1]);
-			mask1 = _mm_cmpeq_epi32(ai0sse, J);
-			K = _mm_or_si128(_mm_and_si128(mask1,ai1sse), _mm_andnot_si128(mask1,K));
-			I = _mm_set1_epi32(i);
-			mask2 = _mm_cmpeq_epi32(I, MNODES);
-			mask3 = _mm_and_si128(mask1,mask2);
-			M = _mm_or_si128(_mm_and_si128(mask3,ai1sse1), _mm_andnot_si128(mask3,ARCS));
-			_mm_store_si128(&k,K);
-			_mm_store_si128(&m,M);
+		ones = _mm_set1_epi32(1);
+	
+		//ai1sse1 = (__m128i*) &ai1[1];
+	
+		for(i = 0; i < nodes; i++) {
+		//	printf("%d ", a0[i]);
 		}
 
+		for(i = 0; i < nodes; i+=4) {
+			//I = _mm_load_si32(i);
+			//printf("Hello");
+			//I = _mm_add_epi32(I,ones);
+			ai0sse = _mm_load_si128(&ai0[i]);
+			//print128_num(a0sse);
+			ai1sse = _mm_load_si128(&ai1[i]);
+			//print128_num(ai1sse);
+			//ai1sse1 = _mm_slli_si128((__m128i) ai1sse, 4);
+			ai1sse1 = _mm_set_epi32(ai1[i+4],ai1[i+3],ai1[i+2],ai1[i+1]);
+			//print128_num(ai1sse1);
+			mask1 = _mm_cmpeq_epi32(J, ai0sse);
+			//print128_num(J);
+			//print128_num(a0sse);	
+			//print128_num(mask1);
+			//print128_num(a1sse);
+			//printf("___\n");
+			K = _mm_or_si128(_mm_and_si128(mask1,ai1sse), _mm_andnot_si128(mask1,K));
+			//print128_num(K);
+			//printf("___\n");
+			I = _mm_set_epi32(i+3, i+2, i+1, i);
+			//print128_num(I);
+			//print128_num(MNODES);
+			//printf("___\n");
+			mask2 = _mm_cmplt_epi32(I, MNODES);
+			//print128_num(mask2);
+			mask3 = _mm_and_si128(mask1,mask2);
+			//print128_num(mask3);
+			//printf("___\n");
+			//print128_num(_mm_and_si128(mask3,ai1sse1));
+			then = _mm_or_si128(_mm_and_si128(mask2,ai1sse1), _mm_andnot_si128(mask2,ARCS));
+			//print128_num(then);
+			//print128_num(mask3);
+			M = _mm_or_si128(_mm_and_si128(mask3,then), _mm_andnot_si128(mask3,M));
+			//print128_num(M);
+			//printf("___\n");
+			_mm_storeu_si128(&k,K);
+			print128_num(K);
+		//	printf("_%d\n",k);
+			_mm_storeu_si128(&m,M);
+			//printf("aa");
+			//printf("%d\n",i);
+			//printf("%d %d %d %d\n", k, m, i, nodes);
+			print128_num(M);
+			//ai1sse1++;
+			//printf("AAAAAAAAAAAAAA");
+			//printf("/n");
+		}
+		printf("%d %d %d %d %d\n", k, m, i, nodes, a1[0]);
+			
 		/* wybor optymalnej krawedzi */
 		if(k != -1) {	
 			//	l = a0[i];
@@ -110,35 +176,64 @@ int sse_auction_search(int *pr, int *P, int *a0, int *a1, int *ai0, int *ai1, in
 			//		argmaxla = l;		//numer wezla
 			//		cost = a1[i];		//koszt potenjalnie dodawanej krawedzi
 			//	}
-			__m128i INFINITE, a0sse, a1sse, prsse, Psse, MAXLA, ARGMAXLA, LA, mask1, mask2, mask3, COST;
+			COST = _mm_set1_epi32(cost);
 			INFINITE = _mm_set1_epi32(INF);
-			for(i = k; i < m; i++) {
+			for(i = k; i < m; i+=4) {
+				printf("Hcello %d %d %d\n", i, k, m);
 				l = a0[i];
+				printf("AAAAAAAAAa %d %d %d\n", i, m, a1[i]);
 				a1sse = _mm_load_si128(&a1[i]);
-				a0sse = _mm_load_si128(&l);
-				prsse = _mm_load_si128(&pr[l]);
-				Psse = _mm_load_si128(&P[l]);
-				MAXLA = _mm_load_si128(&maxla);
-				ARGMAXLA = _mm_load_si128(&argmaxla);
+				print128_num(a1sse);
+				a0sse = _mm_load_si128(&a0[i]);
+				print128_num(a1sse);
+				print128_num(a0sse);
+				//printf("%d\n", pr[l]);
+				prsse = _mm_set_epi32(pr[a0[i]],pr[a0[i+1]],pr[a0[i+2]],pr[a0[i+3]]);
+				print128_num(prsse);
+				Psse = _mm_set_epi32(P[a0[i]],P[a0[i+1]],P[a0[i+2]],P[a0[i+3]]);
+				print128_num(Psse);
+				MAXLA = _mm_set1_epi32(maxla);
+				//printf("AAAAAAAAAa %d %d\n", i, m);
+				print128_num(MAXLA);
+				ARGMAXLA = _mm_set1_epi32(argmaxla);
+				//print128_num(ARGMAXLA);
 				LA = _mm_sub_epi32(prsse, a0sse);
+				print128_num(LA);
 				mask1 = _mm_cmpgt_epi32(LA,MAXLA);
+				//print128_num(mask1);
 				mask2 = _mm_cmpeq_epi32(Psse,INFINITE);
+				//print128_num(mask2);
 				mask3 = _mm_and_si128(mask1,mask2);
+				//printf("AAAAAAAAAa %d %d\n", i, m);
+				//print128_num(mask3);
 				MAXLA = _mm_or_si128(_mm_and_si128(mask3,LA), _mm_andnot_si128(mask3,MAXLA));
+				//print128_num(MAXLA);
 				ARGMAXLA = _mm_or_si128(_mm_and_si128(mask3,a0sse), _mm_andnot_si128(mask3,ARGMAXLA));
+				//print128_num(ARGMAXLA);
 				COST = _mm_or_si128(_mm_and_si128(mask3,a1sse), _mm_andnot_si128(mask3,COST));
-				_mm_store_si128(&maxla,MAXLA);
-				_mm_store_si128(&argmaxla,ARGMAXLA);
-				_mm_store_si128(&cost,COST);
+				//printf("AAAAAAAAAa %d %d\n", i, m);
+				//print128_num(COST);
+				//printf("FFAAAAAAAAa %d %d\n", i, m);
+				_mm_storeu_si128(&maxla,MAXLA);
+				///print128_num(MAXLA);
+				//printf("AAAAAAAAAa %d %d\n", i, m);
+				//print128_num(ARGMAXLA);
+				_mm_storeu_si128(&argmaxla,ARGMAXLA);
+				//printf("AAAAAAAAAa %d %d\n", i, m);
+				_mm_storeu_si128(&cost,COST);
+				//print128_num(COST);
+				//printf("%d %d\n", i, m);
 			}
 		}
 		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
-
+		printf("%d %d %d\n", maxla, argmaxla, cost);
 		/* skrocenie sciezki */
-		if(k == 1 || pr[j] > maxla || maxla == -INF) {
+		if(/*k == 1 || */pr[j] > maxla || maxla == -INF) {
 			
+			printf("oooooooooooooooooo\n");
 			/* uaktualnienie ceny */
 			pr[j] = maxla;
+			printf("%d\n", pr[j]);
 
 			/* sciezka jednoelementowa nie jest skracana */
 			if(j != t) {
@@ -226,7 +321,7 @@ int omp_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *fpr, omp
 		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		for(i = 0; i < nodes; i++) {
 			if(ai[i][0] == j) {
-				k = ai[i][1];		//k - indeks startowy krawedzi wychodzacych z j
+				k = a[i][1];		//k - indeks startowy krawedzi wychodzacych z j
 				//printf("i = %d ", i);
 				if(i < nodes - 1) {
 					m = ai[i+1][1];
@@ -543,7 +638,7 @@ int main(int argc, char* argv[])
 	double time;
 	int *prices, *P;
 	int i, task, source, tail, nodes, arcs;
-	int (*network)[2], (*network_i)[2], *a0, *a1, *ai0, *ai1;
+	int (*network)[2], (*network_i)[2], *a0, *a1, *ai0, *ai1, *Psse;
 	clock_t start, end;
 	char *filename;
 
@@ -576,19 +671,23 @@ int main(int argc, char* argv[])
 	}
 	else if(task == SSE) {
 		//wynSSE = _mm_malloc(n*sizeof(float),16);
-		a0 = _mm_malloc(nodes*sizeof(int), 16);
-		a1 = _mm_malloc(nodes*sizeof(int), 16);
-		ai0 = _mm_malloc(arcs*sizeof(int), 16);
-		ai1 = _mm_malloc(arcs*sizeof(int), 16);
-		for(i = 0; i < nodes; i++) {
-			a0[i] = network_i[i][0];
-			a1[i] = network_i[i][1];
-		}
+		a0 = _mm_malloc(arcs*sizeof(int), 16);
+		a1 = _mm_malloc(arcs*sizeof(int), 16);
+		ai0 = _mm_malloc(nodes*sizeof(int), 16);
+		ai1 = _mm_malloc(nodes*sizeof(int), 16);
+		Psse = _mm_malloc((nodes+1)*sizeof(int), 16);
 		for(i = 0; i < arcs; i++) {
-			ai0[i] = network[i][0];
-			ai1[i] = network[i][1];
+			a0[i] = network[i][0];
+			a1[i] = network[i][1];
 		}
-		sse_auction_search(prices, P, a0, a1, ai0, ai1, nodes, arcs, source, tail);
+		for(i = 0; i < nodes; i++) {
+			ai0[i] = network_i[i][0];
+			ai1[i] = network_i[i][1];
+		}
+		for(i = 0; i <= nodes; i++) {
+			Psse[i] = INF;
+		}
+		sse_auction_search(prices, Psse, ai0, ai1, a0, a1, nodes, arcs, source, tail);
 	}
 	else {
 		printf("Nieprawidlowy typ zadania\n");

@@ -111,7 +111,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 		}
 	}
 	else if(type == ASN) {
-		if((fscanf(f, " %d %d", &tmp, &tmp1)) == 0) {
+		if((fscanf(f, " %d %d", &tmp, &tmp3)) == 0) {
 			printf("Nie mozna odczytac znaku 3.\n");
 			exit(1);
 		}
@@ -120,7 +120,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 	//nettab[1][0] = tmp;
 	//nettab[1][1] = tmp1;
 	nettab[0][0] = tmp;
-	nettab[0][1] = tmp1;
+	nettab[0][1] = tmp3;
 
 	for(i = 1, j = 1; i + j < (*arcs) + (*nodes); i++) {
 		if((res = fgets(str, MAX_LINE_LENGTH, f)) == NULL) {
