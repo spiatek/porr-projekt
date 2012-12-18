@@ -65,11 +65,15 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 	int argmaxla __attribute__ ((aligned (16))) = 0;
 	int cost __attribute__ ((aligned (16))) = 0;
 	int maxla __attribute__ ((aligned (32))) = 0;
-	int length = 1, j = t, l, z;
-	int la, path_cost;
+	int length __attribute__ ((aligned (16))) = 1;
+	int j __attribute__ ((aligned (16))) = t;
+	int l __attribute__ ((aligned (16))) = 0;
+	int z __attribute__ ((aligned (16))) = 0;
+	int la __attribute__ ((aligned (16))) = 0;
+	int path_cost __attribute__ ((aligned (16))) = 0;
 	int cost_tab[nodes+1];
 
-	__m128i a0sse, a1sse, ai0sse, ai1sse, ai1sse1, I, J, K, M, then, nodes;
+	__m128i a0sse, a1sse, ai0sse, ai1sse, ai1sse1, I, J, K, M, then, ones;
 	__m128i ARCS, MNODES, INFINITE, prsse, Psse, MAXLA, ARGMAXLA, LA, mask1, mask2, mask3, COST;
 			
 	for(i = 0; i <= nodes; i++) {
@@ -77,8 +81,6 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 		pr[i] = 0;
 		cost_tab[i] = 0;
 	}
-
-	printf("%Psse: %d\n", P[0]);
 
 	if(check_s_t(s, t, P, nodes) != 0) {
 		return 1;
@@ -179,12 +181,15 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 			COST = _mm_set1_epi32(cost);
 			INFINITE = _mm_set1_epi32(INF);
 			for(i = k; i < m; i+=4) {
-				printf("Hcello %d %d %d\n", i, k, m);
+				//printf("Hcello %d %d %d\n", i, k, m);
 				l = a0[i];
-				printf("AAAAAAAAAa %d %d %d\n", i, m, a1[i]);
-				a1sse = _mm_load_si128(&a1[i]);
+				printf("%d\n",l);
+				//printf("AAAAAAAAAa %d %d %d\n", i, m, a1[i]);
+				//a1sse = _mm_load_si128((__m128i*) &a1[i]);
+				a1sse = _mm_set_epi32(a1[i],a1[i+1],a1[i+2],a1[i+3]);
 				print128_num(a1sse);
-				a0sse = _mm_load_si128(&a0[i]);
+				//a0sse = _mm_load_si128((__m128i*) &a0[i]);
+				a0sse = _mm_set_epi32(a0[i],a0[i+1],a0[i+2],a0[i+3]);
 				print128_num(a1sse);
 				print128_num(a0sse);
 				//printf("%d\n", pr[l]);
