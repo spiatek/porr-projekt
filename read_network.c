@@ -5,7 +5,7 @@
 #define MINCF		0
 #define ASN		1
 
-int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, int (*nettab)[2], int(*netind)[2])
+int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, int (*nettab)[2], int (*netind)[2])
 {
 	int type;				//typ sieci (MIN - min cost flow, ASN - assignment)
 	char *res, str[100], c;
@@ -54,7 +54,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 	
 	printf("%d\n", (*arcs)+(*nodes));
 	//nettab = (int (*)[2])malloc(((*arcs)+(*nodes))*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
-	
+
 	if((fscanf(f, "%c %d", &c, &tmp)) == 0) {
 		printf("Nie mozna odczytac znaku 2.\n");
 		exit(1);
@@ -104,6 +104,7 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 	netind[0][0] = tmp;
 	netind[0][1] = 0;
 
+	printf("Dopisano %d %d do netind.\n", netind[0][0], netind[0][1]);
 	if(type == MINCF) {
 		if((fscanf(f, " %d %d %d %d", &tmp, &tmp1, &tmp2, &tmp3)) == 0) {
 			printf("Nie mozna odczytac znaku 3.\n");
@@ -122,7 +123,8 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 	nettab[0][0] = tmp;
 	nettab[0][1] = tmp3;
 
-	for(i = 1, j = 1; i + j < (*arcs) + (*nodes); i++) {
+	for(i = 1, j = 1; i < (*arcs); i++) {
+		tmp1 = 0; tmp4 = 0;
 		if((res = fgets(str, MAX_LINE_LENGTH, f)) == NULL) {
 			printf("Nie mozna odczytac linii 3.\n");
 			exit(1);
@@ -132,9 +134,9 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 			exit(1);
 		}
 		else if(c != 'a') {
+			printf("xxx\n");
 			break;
 		}
-		//printf("%c ", c);
 		if(type == MINCF) {
 			if((fscanf(f, "%d %d %d %d %d", &tmp, &tmp1, &tmp2, &tmp3, &tmp4)) == 0) {
 				printf("Nie mozna odczytac znaku 5.\n");
@@ -163,18 +165,27 @@ int read_network(char *filename, int *source, int *tail, int *nodes, int *arcs, 
 
 	fclose(f);
 
-	//tmp = i + j;
-	//for(i = 0; i <= tmp; i++) {
-	//	printf("%d %d\n", nettab[i][0], nettab[i][1]);
-	//}
+	tmp = i + j;
+	for(i = 0; i <= *nodes; i++) {
+		printf("%d %d\n", netind[i][0], netind[i][1]);
+	}
+	printf("\n");
+	for(i = 0; i <= *arcs; i++) {
+		printf("%d %d\n", nettab[i][0], nettab[i][1]);
+	}
+
 
 	return 0;
 }
-
-/*int main()
+/*
+int main()
 {
 	int source, tail, nodes, arcs;
 	int (*network)[2];
-	read_network("outp", &source, &tail, &nodes, &arcs, network);
+	int (*network_i)[2];
+	network = (int (*)[2])malloc(1500*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
+	network_i = (int (*)[2])malloc(400*2*sizeof(int));
+	
+	read_network("outp", &source, &tail, &nodes, &arcs, network, network_i);
 	return 0;	
 }*/

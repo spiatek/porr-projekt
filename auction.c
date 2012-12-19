@@ -457,7 +457,7 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 		k = -1;
 		m = -1;
 
-		printf("j = %d\n", j);
+		printf("j = %d %d %d %d %d\n", j, ai[1][0], ai[1][1], a[1][0], a[1][1]);
 
 		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		for(i = 0; i < nodes; i++) {
@@ -472,6 +472,8 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 				}
 			}
 		}
+
+		printf("%d %d\n", k, m);
 
 		/* wybor optymalnej krawedzi */
 		if(k != -1) {
@@ -493,7 +495,7 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 				}
 			}
 		}
-		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
+		printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
 
 		/* skrocenie sciezki */
 		if(k == 1 || pr[j] > maxla || maxla == -INF) {
@@ -656,9 +658,11 @@ int main(int argc, char* argv[])
 
 	printf("P-1\n");
 
-	network = (int (*)[2])malloc(arcs*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
-	network_i = (int (*)[2])malloc(nodes*2*sizeof(int));
+	network = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
+	network_i = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));
 	read_network(filename, &source, &tail, &nodes, &arcs, network, network_i);
+
+	printf("%d %d %d %d\n", network_i[0][0], network_i[0][1], network[0][0], network[0][1]);
 
 	prices = (int*)malloc((nodes+1)*sizeof(int));
 	P = (int*)malloc((nodes+1)*sizeof(int));
