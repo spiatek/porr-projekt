@@ -147,18 +147,6 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 		jfloat = (float) j;
 		//printf("j = %f\n", jfloat);
 
-		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
-		/*for(i = 0; i < nodes; i++) {
-			if(a0[i] == j) {
-				k = a1[i];
-				if(i != nodes-1) {
-					m = a1[i+1];
-				else {
-					m = arcs;
-				}
-			}
-		}
-		*/
 		J = _mm_set1_ps(jfloat);
 		K = _mm_set1_ps(-1);
 		M = _mm_set1_ps(-1);
@@ -166,12 +154,6 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 		ARCS = _mm_set1_ps(arcs);
 		ones = _mm_set1_ps(1.0);
 	
-		//ai1sse1 = (__m128i*) &ai1[1];
-	
-		for(i = 0; i < nodes; i++) {
-		//	printf("%d ", a0[i]);
-		}
-
 		for(i = 0; i < nodes; i+=4) {
 			//I = _mm_load_si32(i);
 			//printf("Hello");
@@ -232,37 +214,8 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 		}
 		//printf("K,M: %d %d\n", k, m);
 
-		//int z0,z1,z2,z3;
-		//z0 = _mm_extract_pi16(K,0);
-		//z1 = _mm_extract_pi16(K,1);
-		//z2 = _mm_extract_pi16(K,2);
-		//z3 = _mm_extract_pi16(K,3);
-		//if(z0 < z1) z0 = z1;
-		//if(z2 < z3) z2 = z3;
-		//if(z0 < z2) z0 = z2;
-		//k = z0;
-/*
-		z0 = _mm_extract_pi16(M,0);
-		z1 = _mm_extract_pi16(M,1);
-		z2 = _mm_extract_pi16(M,2);
-		z3 = _mm_extract_pi16(M,3);
-		if(z0 < z1) z0 = z1;
-		if(z2 < z3) z2 = z3;
-		if(z0 < z2) z0 = z2;
-		m = z0;
-*/
 		/* wybor optymalnej krawedzi */
 		if(k != -1) {	
-		/*	for(i = k; i < m; i++) {
-				lfloat = a0[i];
-				l = (int) lfloat;
-				la = pr[l] - a1[i];
-				if(la > maxla && P[l] == INF) {
-					maxla = la;		//nowy maksymalny la
-					argmaxla = l;		//numer wezla
-					cost = a1[i];		//koszt potenjalnie dodawanej krawedzi
-				}
-			}*/
 			__m128 pom1,pom2,pom3;
 			COST = _mm_set1_ps(cost);
 			INFINITE = _mm_set1_ps(INF);
