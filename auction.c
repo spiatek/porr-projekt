@@ -17,7 +17,7 @@
 #define SEQ 1
 #define SSE 2
 	
-int check_s_t(int source, int tail, float *P, int nodes)
+int check_s_t(int source, int tail, int *P, int nodes)
 {	
 	/* sprawdzenie czy source jest jednoczesnie tail */
 	if(source == tail) {
@@ -44,6 +44,35 @@ int check_s_t(int source, int tail, float *P, int nodes)
 
 	return 0;
 }
+	
+int check_s_t_float(int source, int tail, float *P, int nodes)
+{	
+	/* sprawdzenie czy source jest jednoczesnie tail */
+	if(source == tail) {
+		printf("s = t, brak sciezki\n");
+		return 1;
+	}
+	
+	/* sprawdzenie czy t jest poprawne */
+	if(tail > 0 && tail <= nodes) {
+		P[tail] = 0.0;
+	}
+	else {
+		printf("Blad, t musi byc z zakresu 1..nodes\n");
+		printf("t nodes %d %d\n", tail, nodes);
+		return 1;
+	}
+
+	/* sprawdzenie czy s jest poprawne */
+	if(source <= 0 || source > nodes) {
+		printf("Blad, s musi byc z zakresu 1..nodes\n");
+		printf("%d\n", source);
+		return 1;
+	}
+
+	return 0;
+}
+
 
 void print_num(__m128 var)
 {
@@ -105,7 +134,7 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 		cost_tab[i] = 0.0;
 	}
 
-	if(check_s_t(s, t, P, nodes) != 0) {
+	if(check_s_t_float(s, t, P, nodes) != 0) {
 		return 1;
 	}
 
