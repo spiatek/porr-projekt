@@ -95,6 +95,9 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 	
 	kfloat = _mm_malloc(4*sizeof(float), 16);
 	mfloat = _mm_malloc(4*sizeof(float), 16);
+	costfl_tab = _mm_malloc(4*sizeof(float), 16);
+	maxla_tab = _mm_malloc(4*sizeof(float), 16);
+	argmaxla_tab = _mm_malloc(4*sizeof(float), 16);
 		
 	for(i = 0; i <= nodes; i++) {
 		//P[i] = INF;
@@ -113,7 +116,7 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 		m = -1;
 
 		jfloat = (float) j;
-		printf("j = %f\n", jfloat);
+		//printf("j = %f\n", jfloat);
 
 		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		/*for(i = 0; i < nodes; i++) {
@@ -198,7 +201,7 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 				m = (int) mfloat[i];
 			}
 		}
-		printf("K,M: %d %d\n", k, m);
+		//printf("K,M: %d %d\n", k, m);
 
 		//int z0,z1,z2,z3;
 		//z0 = _mm_extract_pi16(K,0);
@@ -235,7 +238,6 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 			COST = _mm_set1_ps(cost);
 			INFINITE = _mm_set1_ps(INF);
 			for(i = k; i < m; i+=4) {
-				//printf("Hcello %d %d %d\n", i, k, m);
 				//l = a0[i];
 				//printf("%d\n",l);
 				//printf("AAAAAAAAAa %d %d %d\n", i, m, a1[i]);
@@ -251,46 +253,40 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 				mask2 = _mm_set1_ps(0-INF);
 				mask3 = _mm_cmpgt_ps(_mm_set1_ps(m),_mm_set_ps(i,i+1,i+2,i+3));
 				prsse = _mm_or_ps(_mm_and_ps(mask3,mask1), _mm_andnot_ps(mask3,mask2));
-				printf("prsse: "); print_num(prsse);
+		//		printf("prsse: "); print_num(prsse);
 				Psse = _mm_set_ps(P[(int) a0[i]],P[(int) a0[i+1]],P[(int) a0[i+2]],P[(int) a0[i+3]]);
-				printf("Psse: "); print_num(Psse);
+		//		printf("Psse: "); print_num(Psse);
 				MAXLA = _mm_set1_ps(maxla);
 				//printf("AAAAAAAAAa %d %d\n", i, m);
 				//print_num(MAXLA);
 				ARGMAXLA = _mm_set1_ps(argmaxla);
 				//print128_num(ARGMAXLA);
 				LA = _mm_sub_ps(prsse, a1sse);
-				printf("LA: "); print_num(LA);
+		//		printf("LA: "); print_num(LA);
 				//pom1 = _mm_unpacklo_ps(MAXLA,MAXLA);
 				//pom2 = _mm_unpackhi_ps(MAXLA,MAXLA);
 				//pom3 = _mm_max_ps(pom1,pom2);
 				//MAXLA = _mm_max_ss(pom3, _mm_movehl_ps(pom3,pom3));
-				printf("MAXLA: "); print_num(MAXLA);
+		//		printf("MAXLA: "); print_num(MAXLA);
 				mask1 = _mm_max_ps(LA,MAXLA);			//maksymalna wartość La, Maxla
-				printf("max(LA,MAXLA): "); print_num(mask1);
+		//		printf("max(LA,MAXLA): "); print_num(mask1);
 				mask2 = _mm_cmpeq_ps(Psse,INFINITE);		//czy warunek spelniony
-				printf("Psse == INFINITE: "); print_num(mask2);
+		//		printf("Psse == INFINITE: "); print_num(mask2);
 				mask3 = _mm_and_ps(mask2,_mm_cmpgt_ps(LA,MAXLA));
 				//mask3 = _mm_and_ps(mask1,mask2);
-				//printf("AAAAAAAAAa %d %d\n", i, m);
-				printf("War. sp.: "); print_num(mask3);
+		//		printf("War. sp.: "); print_num(mask3);
 				MAXLA = _mm_or_ps(_mm_and_ps(mask2,mask1), _mm_andnot_ps(mask2,MAXLA));
-				printf("MAXLA: "); print_num(MAXLA);
+		//		printf("MAXLA: "); print_num(MAXLA);
 				ARGMAXLA = _mm_or_ps(_mm_and_ps(mask3,a0sse), _mm_andnot_ps(mask3,ARGMAXLA));
-				printf("ARGMAXLA: "); print_num(ARGMAXLA);
+		//		printf("ARGMAXLA: "); print_num(ARGMAXLA);
 				COST = _mm_or_ps(_mm_and_ps(mask3,a1sse), _mm_andnot_ps(mask2,COST));
-				//printf("AAAAAAAAAa %d %d\n", i, m);
-				printf("COST: "); print_num(COST);
-				//printf("FFAAAAAAAAa %d %d\n", i, m);
-				_mm_storeu_ps(maxla_tab,MAXLA);
+		//		printf("COST: "); print_num(COST);
+				_mm_store_ps((float*) maxla_tab,MAXLA);
 				///print128_num(MAXLA);
-				//printf("AAAAAAAAAa %d %d\n", i, m);
 				//print128_num(ARGMAXLA);
-				_mm_storeu_ps(argmaxla_tab,ARGMAXLA);
-				//printf("AAAAAAAAAa %d %d\n", i, m);
-				_mm_storeu_ps(costfl_tab,COST);
+				_mm_store_ps((float*) argmaxla_tab,ARGMAXLA);
+				_mm_store_ps((float*) costfl_tab,COST);
 				//print128_num(COST);
-				//printf("%d %d\n", i, m);
 			}
 		}
 
@@ -303,7 +299,7 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 			}
 		}
 
-		printf("pr[j] = %f, maxla = %f, argmaxla = %f\n", pr[j], maxla, argmaxla);
+		//printf("pr[j] = %f, maxla = %f, argmaxla = %f\n", pr[j], maxla, argmaxla);
 
 		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
 		//printf("%d %d %d\n", maxla, argmaxla, cost);
@@ -351,9 +347,11 @@ int sse_auction_search(float *pr, float *P, float *ai0, float *ai1, float *a0, f
 			/* sciezka doszla do wierzcholka startowego => koniec */
 			if(argmaxla == s)
 			{
-				printf("WYCHODZE\n");
-				free(kfloat);
-				free(mfloat);
+				_mm_free(kfloat);
+				_mm_free(mfloat);
+				_mm_free(costfl_tab);
+				_mm_free(maxla_tab);
+				_mm_free(argmaxla_tab);
 				return 0;
 			}
 		}
@@ -544,7 +542,7 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 		m = -1;
 
 		//printf("j = %d %d %d %d %d\n", j, ai[1][0], ai[1][1], a[1][0], a[1][1]);
-		printf("j = %d\n", j);
+	//	printf("j = %d\n", j);
 
 		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		for(i = 0; i < nodes; i++) {
@@ -560,7 +558,7 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 			}
 		}
 
-		printf("%d %d\n", k, m);
+	//	printf("%d %d\n", k, m);
 
 		/* wybor optymalnej krawedzi */
 		if(k != -1) {
@@ -582,7 +580,7 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 				}
 			}
 		}
-		printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
+	//	printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
 
 		/* skrocenie sciezki */
 		if(k == 1 || pr[j] > maxla || maxla == -INF) {
@@ -787,6 +785,12 @@ int main(int argc, char* argv[])
 			prsse[i] = 0.0;
 		}
 		sse_auction_search(prsse, Psse, ai0, ai1, a0, a1, nodes, arcs, source, tail);
+		_mm_free(a0);
+		_mm_free(a1);
+		_mm_free(ai0);
+		_mm_free(ai1);
+		_mm_free(Psse);
+		_mm_free(prsse);
 	}
 	else {
 		printf("Nieprawidlowy typ zadania\n");
@@ -805,7 +809,7 @@ int main(int argc, char* argv[])
 	free(network);
 	free(network_i);
 	free(prices);
-	free(P);	
+	free(P);
 
 	return 0;
 }
