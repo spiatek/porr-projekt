@@ -44,35 +44,6 @@ int check_s_t(int source, int tail, int *P, int nodes)
 
 	return 0;
 }
-	
-int check_s_t_float(int source, int tail, float *P, int nodes)
-{	
-	/* sprawdzenie czy source jest jednoczesnie tail */
-	if(source == tail) {
-		printf("s = t, brak sciezki\n");
-		return 1;
-	}
-	
-	/* sprawdzenie czy t jest poprawne */
-	if(tail > 0 && tail <= nodes) {
-		P[tail] = 0.0;
-	}
-	else {
-		printf("Blad, t musi byc z zakresu 1..nodes\n");
-		printf("t nodes %d %d\n", tail, nodes);
-		return 1;
-	}
-
-	/* sprawdzenie czy s jest poprawne */
-	if(source <= 0 || source > nodes) {
-		printf("Blad, s musi byc z zakresu 1..nodes\n");
-		printf("%d\n", source);
-		return 1;
-	}
-
-	return 0;
-}
-
 
 void print_num(__m128 var)
 {
@@ -83,7 +54,7 @@ void print_num(__m128 var)
 
 uint32_t get_from_m128i(__m128i var, int n)
 {
-	uint32_t *val = (uint32_t*) &var;
+	uint32_t *val = (uint32_t*) &var;	
 	return val[n];
 }
 
@@ -206,18 +177,17 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 		//printf("%d %d %d %d %d\n", k, m, i, nodes, a1[0]);
 		//printf("%f %f %f %f | %f %f %f %f\n", kfloat[0], kfloat[1], kfloat[2], kfloat[3], mfloat[0], mfloat[1], mfloat[2], mfloat[3]);
 		uint32_t tmp1, tmp2;
-		print128_num(M);	print128_num(K);
 		for(i = 0; i < 4; i++) {
 			tmp1 = get_from_m128i(K,i);
 			tmp2 = get_from_m128i(M,i);
-			if(tmp1 > -1) {
+			if(tmp1 != -1) {
 				k = tmp1;
 			}
-			if(tmp2 > -1) {
+			if(tmp2 != -1) {
 				m = tmp2;
 			}
 		}
-		printf("K,M: %d %d\n", k, m);
+		//printf("K,M: %d %d\n", k, m);
 
 		/* wybor optymalnej krawedzi */
 		if(k != -1) {	
@@ -269,7 +239,7 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 			//	printf("MAXLA: "); print128_num(MAXLA);
 				ARGMAXLA = _mm_or_si128(_mm_and_si128(mask3,a0sse), _mm_andnot_si128(mask3,ARGMAXLA));
 			//	printf("ARGMAXLA: "); print128_num(ARGMAXLA);
-				COST = _mm_or_si128(_mm_and_si128(mask3,a1sse), _mm_andnot_si128(mask2,COST));
+				COST = _mm_or_si128(_mm_and_si128(mask3,a1sse), _mm_andnot_si128(mask3,COST));
 			//	printf("COST: "); print128_num(COST);
 				//_mm_store_si128((int*) maxla_tab,MAXLA);
 				//_mm_store_ps((float*) &maxla,MAXLA);
@@ -290,8 +260,9 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 				cost = get_from_m128i(COST,i);
 			}
 		}
-
-		printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
+		printf("COST: %d, PATH_COST: %d\n", cost, path_cost);
+	
+		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
 
 		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
 		//printf("%d %d %d\n", maxla, argmaxla, cost);
@@ -568,8 +539,9 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 					cost = a[i][1];		//koszt potenjalnie dodawanej krawedzi
 				}
 			}
-		}
-		printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
+		}			
+		printf("COST: %d, PATH_COST: %d\n", cost, path_cost);
+		//printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
 
 		/* skrocenie sciezki */
 		if(k == 1 || pr[j] > maxla || maxla == -INF) {
