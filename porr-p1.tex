@@ -31,13 +31,35 @@ W ramach projektu wykorzystany został generator Netgen. Programy testowano na s
 Sieć reprezentowana jest za pomocą dwóch tablic. Pierwsza, o wymiarze $n \times 2$, w pierwszej kolumnie zawiera numery wierzchołków sieci, natomiast w drugiej - ich indeksy w drugiej tablicy. Druga tablica zawiera: w pierwszej kolumnie - numery wierzchołków, w drugiej - koszty krawędzi. Taka forma reprezentacji macierzy pozwala na znaczące przyspieszenie wykonania programów. Ponieważ generator Netgen zapisuje wygenerowaną sieć do pliku, konieczne było napisanie programu, który sczytuje zawartość pliku do docelowych struktur (plik read\_network.c).
 \section{Opis zaimplementowanych algorytmów}
 \subsection{Algorytm Dijkstry}
-...
+Algorytm Dijkstry wylicza najkrótsze ścieżki wiodące od węzła danego do każdego z pozostałych węzłów w grafie. Rezultatem jego działania są dwie tablice. Jedna zawiera wyliczone najkrótsze ścieżki, natomiast druga -- numery wierzchołków poprzedzających. W pętli wykonywane są następujące operacje: szukanie wierzchołka o najkrótszej ścieżce z węzła początkowego, sprawdzenie czy dla jego sąsiadów koszty ścieżek od węzła początkowego są większe od liczby określającej koszt ścieżki od węzła początkowego do bieżącego powiększony o koszt krawędzi dotarcia do niego. Jeśli tak, koszty ścieżek od węzła początkowego do bieżącego są aktualizowane do tej liczby.
 \subsection{Algorytm aukcyjny}
-...
+Został zaimplementowany algorytm aukcyjny w wersji opisanej w artykule \cite{auction}.
+
+Algorytm korzysta z dwóch tablic. W pierwszej dla każdego węzła przechowywana jest jego aktualna cena. W drugiej dla każdego węzła przechowywany jest jego numer w aktualnej ścieżce (dla węzłów nie występujących w ścieżce jest to wartość 'nieskończona').
+
+Algorytm rozpoczyna działanie od węzła końcowego i szuka ścieżki do węzła początkowego. W pętli kolejno wykonywane są następujące czynności: 
+\begin{itemize}
+\item wyszukanie krawędzi wychodzących z bieżącego węzła
+\item wybór krawędzi, dla której liczba określająca różnicę ceny kolejnego węzła i kosztu dojścia do niego jest najmniejsza
+\item jeśli cena bieżącego węzła jest większa od tej liczby, węzeł jest dodawany do ścieżki, a w przeciwnym wypadku -- ścieżka jest skracana o jeden węzeł
+\end{itemize}
+Algorytm kończy działanie gdy do ścieżki zostanie dodany węzeł początkowy.
+
+Aby umożliwić porównanie efektywności algorytmu z innymi, powyżej opisane działania wykonywane są dla każdego węzła z osobna.
 \subsection{Algorytm aukcyjny - zrównoleglenie za pomocą SSE}
-...
+Algorytm aukcyjny zaimplementowany w taki sposób, jak opisano powyżej, zawiera cztery pętle: główną oraz trzy zagnieżdżone. Podjęto próbę zrównoleglenia za pomocą instrukcji SSE dwóch spośród zagnieżdżonych pętli:
+\begin{itemize}
+\item wyszukiwanie w tablicy z węzłami indeksu tablicy z krawędziami wychodzącymi z bieżącego węzła
+\item wyszukiwanie krawędzi, dla której liczba określająca różnicę ceny kolejnego węzła i kosztu dojścia do niego jest najmniejsza
+\end{itemize}
 \subsection{Algorytm aukcyjny - zrównoleglenie za pomocą OpenMP}
-Aby zrównoleglić algorytm aukcyjny przy wykorzystaniu dyrektyw OpenMP należy zmodyfikować odpowiednio algorytm sekwencyjny. Zrównoleglenie polega na uruchamianiu zmodyfikowanego algorytmu dla różnych węzłów końcowych t. Obliczenia zostają przyśpieszone, dzięki zapamiętywaniu wyników zakończonych wywołań algorytmu. Gdy, jeden z odpalonych algorytmów dojdzie do węzła, dla którego już obliczono najkrótszą ścieżkę do węzła startowego s, obliczenia zostają przerwane i wykorzystywany jest zapamiętany wynik co znacząco skraca czas znalezienia poszukiwanej ścieżki. Kolejne węzły końcowe są pobierane z kolejki, w której znajdują się na początku wszystkie węzły w grafie. Gdy ścieżka dla danego węzła końcowego t zostanie obliczona, wszystkie węzły znajdujące się w obliczonej ścieżce są usuwane z kolejki, ponieważ dla każdego w tych węzłów  obliczono już optymalną ścieżkę do węzła startowego s. Modyfikacja sekwencyjnego algorytmu aukcyjnego polega na dodaniu listy, w której przetrzymywane są indeksy węzłów dodanych do danej ścieżki oraz koszt dotarcia do określonego węzła (przetrzymywana jest ścieżka). Za każdym obiegiem pętli algorytmu sprawdzane jest czy w liście (w ścieżce) nie znajdują się przypadkiem węzeł, dla którego policzono już ścieżkę, jeśli jest taki węzeł, obliczenia zostają przerwane i z kolejki usuwane są wszystkie węzły znajdujące się w liście oraz w tablicy zapisywane są koszty dotarcia z danego węzła do węzła s. Funkcja zwraca sumę kosztu dotarcia z węzła t do znalezionego węzła oraz kosztu dotarcia do węzła s obliczonego przez inne wywołania funkcji. Aby zapewnić integralność danych pomiędzy różnymi wątkami wykonującymi zmodyfikowany algorytm, dostęp do kolejki z kolejnymi węzłami końcowymi t jak i do tablicy przechowującej już obliczone koszty jest synchronizowany tak aby w danej chwili do kolejki lub tablicy miał dostęp tylko jeden wątek programu.
+Aby zrównoleglić algorytm aukcyjny przy wykorzystaniu dyrektyw OpenMP konieczne było zmodyfikowanie algorytmu sekwencyjnego. Zrównoleglenie polega na uruchamianiu zmodyfikowanego algorytmu dla różnych węzłów końcowych t. Obliczenia zostają przyśpieszone, dzięki zapamiętywaniu wyników zakończonych wywołań algorytmu. Gdy, jeden z uruchomionych algorytmów dojdzie do węzła, dla którego już obliczono najkrótszą ścieżkę do węzła startowego s, obliczenia zostają przerwane i wykorzystywany jest zapamiętany wynik.
+
+Kolejne węzły końcowe są pobierane z kolejki, w której znajdują się na początku wszystkie węzły w grafie. Gdy ścieżka dla danego węzła końcowego t zostanie obliczona, wszystkie węzły znajdujące się w obliczonej ścieżce są usuwane z kolejki, ponieważ dla każdego z tych węzłów  obliczono już optymalną ścieżkę do węzła startowego s.
+
+Modyfikacja sekwencyjnego algorytmu aukcyjnego polega na dodaniu listy, w której przetrzymywane są indeksy węzłów dodanych do danej ścieżki oraz koszt dotarcia do określonego węzła (przetrzymywana jest cała ścieżka). Za każdym obiegiem pętli algorytmu sprawdzane jest czy w liście nie znajdują się przypadkiem węzeł, dla którego policzono już ścieżkę, jeśli jest taki węzeł, obliczenia zostają przerwane i z kolejki usuwane są wszystkie węzły znajdujące się w liście oraz w tablicy zapisywane są koszty dotarcia z danego węzła do węzła s.
+
+Funkcja wykonywana dla pojedynczego wątku zwraca sumę kosztu dotarcia z węzła t do znalezionego węzła oraz kosztu dotarcia do węzła s obliczonego przez inne wywołania funkcji. Aby zapewnić integralność danych pomiędzy różnymi wątkami wykonującymi zmodyfikowany algorytm, dostęp do kolejki z kolejnymi węzłami końcowymi t jak i do tablicy przechowującej już obliczone koszty jest synchronizowany tak, aby w danej chwili do kolejki lub tablicy miał dostęp tylko jeden wątek programu.
 \section{Kompilacja (GCC) i uruchamianie programów pod systemem Linux}
 \textbf{Przykładowa zawartość pliku z parametrami sieci:}\\\\
 \texttt{13502460\\
@@ -62,4 +84,7 @@ Dla sekwencyjnego: numer problemu -- 1, dla OpenMP -- 0.
 ...
 \section{Wnioski}
 ...
+\begin{thebibliography}{1}
+\bibitem{auction}Andrzej Karbowski. Parallel Algorithms For Multicore Routers In Large Computer Networks - A Review. 2007.
+\end{thebibliography}
 \end{document}
