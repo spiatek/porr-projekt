@@ -38,6 +38,9 @@ typedef struct Queue {
     void (*display) (struct Queue*);
 
 	void (*queue_clear) (struct Queue*);
+	
+	void (*queue_remove) (struct Queue*, int);
+	
     // size of this queue
     int size;
 } Queue;
@@ -61,6 +64,8 @@ int _peek (Queue* queue);
 void _display (Queue* queue);
 
 void _queue_clear (Queue* queue);
+
+void _queue_remove (Queue* queue, int item);
 /**
  * Create and initiate a Queue
  */
@@ -110,9 +115,12 @@ void _push (Queue* queue, int item) {
     n->item = item;
     n->next = NULL;
 
-    if (queue->head == NULL) { // no head
+    if (queue->head == NULL) 
+    { // no head
         queue->head = n;
-    } else{
+    } 
+    else
+    {
         queue->tail->next = n;
     }
     queue->tail = n;
@@ -126,6 +134,9 @@ void _push (Queue* queue, int item) {
 int _pop (Queue* queue) {
     // get the first item
     Node* head = queue->head;
+    if (head == NULL)
+    	return -1;
+    
     int item = head->item;
     // move head pointer to next node, decrease size
     queue->head = head->next;
@@ -168,12 +179,57 @@ void _queue_clear (Queue* queue)
 	Node* tmp = NULL;
     Node* curr = queue->head;
 
+    if (curr == NULL)
+    {
+    	return;
+    }
 
 	while (curr->next != NULL)
 	{
 		tmp = curr->next;
 		free(curr);
 		curr = tmp;
+	}
+}
+
+void _queue_remove (Queue* queue, int item)
+{
+	Node* tmp = NULL;
+    Node* curr = queue->head;
+    Node* prev = curr;
+  
+    if (prev == NULL)
+    {
+    	return;
+    }
+    if (prev->item == item)
+    {
+    	queue->head = prev->next;
+    	queue->size--;
+    	free(prev);
+    	
+    	return;
+    }
+
+	while (curr->next != NULL)
+	{
+		prev = curr;
+		curr = curr->next;
+		if (curr->item == item)
+		{
+			//printf("remove item=%d from queue\n", item);
+			queue->size--;
+			tmp = curr;
+			curr = curr->next;
+			prev->next=curr;
+			free(tmp);
+			if (curr == NULL)
+			{
+				queue->tail = prev;
+				return;
+			}
+			return;
+		}
 	}
 }
 
@@ -191,6 +247,7 @@ Queue createQueue () {
     queue.peek = &_peek;
     queue.display = &_display;
 	queue.queue_clear = &_queue_clear;
+	queue.queue_remove = &_queue_remove;
     return queue;
 }
 

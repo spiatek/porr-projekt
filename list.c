@@ -30,7 +30,9 @@ typedef struct NodeL {
 typedef struct List {
     NodeL* head;
 	NodeL* curr;
+	int size;
 
+    int (*lsize) (struct List*);
     void (*add) (struct List*, int, int); // add item to tail
     void (*remove_) (struct List*, int);
     int (*getNext) (struct List*);
@@ -78,6 +80,7 @@ void _add (List* list, int item, int cost) {
         list->head = n;
 		list->head->prev = n;
 		list->curr = list->head;
+		list->size = 1;
     } else{
 		NodeL* tmp = list->head->prev;
 		n->prev = tmp;
@@ -85,29 +88,61 @@ void _add (List* list, int item, int cost) {
 		
 		list->head->prev = n;
 		list->curr = n;
+		list->size += 1;
     }
+}
+
+int _lsize (List* list) {
+	int counter = 0;
+	if(list->head == NULL) {
+		return 0;
+	}
+	if(list->head->prev == list->head && list->head->next == list->head) {
+		return 1;
+	}
+	NodeL* tmp = list->head;
+	do {
+		tmp = tmp->next;
+		counter++;
+	} while(list->head->prev->next != tmp->next);
+	return counter;
 }
 
 void _remove_ (List* list, int item) {
     // Remove the node
 	int result = 0;
 	NodeL* n = NULL;
+	
 	result = list->setCurrTo(list, item);
 
+	if (list->head == NULL)
+	{
+		list->head = NULL;
+		list->curr = NULL;
+	//	printf("tuu\n");
+		return;
+	}
+	
 	if (list->curr == list->head)
 	{
 		free(list->head);
 		list->head = NULL;
 		list->curr = NULL;
+		list->size = 0;
+	//	printf("tu\n");
 		return;
 	}
-
-	if (result <= 0)
+	
+	//printf("z %d %dd\n", list->size, list->curr->next->value);
+	if (result >= 0)
 	{
 		list->curr->prev->next = list->curr->next;
-		list->curr->next->prev = list->curr->prev;
+		if(list->curr->next != NULL) {
+			list->curr->next->prev = list->curr->prev;
+		}
 		n = list->curr;
 		list->curr = n->prev;
+		list->size -= 1;
 		free(n);
 	}
 }
@@ -175,8 +210,14 @@ int _setCurrTo (List* list, int item)
 {
     list->setCurrToHead(list);
 
-	if (list->curr == NULL)
+	if (list->curr == NULL) {
 		return -1;
+	}
+
+	/*if(list->curr->item == item) {	
+		printf("AAAA %d %d ", list->curr->item, list->curr->value);
+		return list->curr->item;
+	}*/
 
 	while (list->curr->next != NULL)
 	{
@@ -185,6 +226,10 @@ int _setCurrTo (List* list, int item)
 			return list->curr->item;
 		}
 		list->curr = list->curr->next;
+	}
+
+	if(list->curr->item == item) {
+		return list->curr->item;
 	}
 
 	return -1;
@@ -209,6 +254,8 @@ void _clear (List* list)
 		free(list->curr);
 		list->curr = tmp;
 	}
+
+	list->size = 0;
 }
 
 
@@ -232,6 +279,8 @@ List createList () {
     List list;
     list.head = NULL;
 	list.curr = NULL;
+	list.size = 0;
+    list.lsize = &_lsize;
     list.add = &_add;
     list.remove_ = &_remove_;
     list.getNext = &_getNext;
@@ -244,5 +293,23 @@ List createList () {
 	list.isEmpty = &_isEmpty;
     return list;
 }
-
+/*
+void main()
+{
+	List list;
+	list = createList();
+	printf("%d ", list.size);
+	list.add(&list,1,2);
+	printf("%d ", list.size);
+	list.add(&list,5,222);
+	printf("%d ", list.size);
+	list.add(&list,3,22);
+	printf("%d ", list.size);
+	list.remove_(&list,3);
+	list.remove_(&list,1);
+	list.remove_(&list,5);
+	printf("\naaa%d ", list.size);
+	return;
+}
+*/
 #endif
