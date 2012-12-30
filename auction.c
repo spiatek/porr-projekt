@@ -108,6 +108,20 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 			then = _mm_or_si128(_mm_and_si128(mask2,ai1sse1), _mm_andnot_si128(mask2,ARCS));	//m = ai1[i+1] lub arcs
 			M = _mm_or_si128(_mm_and_si128(mask3,then), _mm_andnot_si128(mask3,M));		//ustalenie M
 		}
+	
+		for(i = 0; i < nodes; i++) {
+			if(ai0[i] == j) {
+				k = ai1[i];		//k - indeks startowy krawedzi wychodzacych z j
+				//printf("i = %d ", i);
+				if(i < nodes - 1) {
+					m = ai1[i+1];
+				}
+				else {
+					m = arcs;
+				}
+			}
+		}
+
 
 		/* zapisanie k, m */
 		for(i = 0; i < 4; i++) {
@@ -121,7 +135,7 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 			}
 		}
 		//printf("K,M: %d %d\n", k, m);
-
+		
 		/* wybor optymalnej krawedzi */
 		if(k != -1) {		
 			INFINITE = _mm_set1_epi32(INF);		//wartosc "nieskonczona"
@@ -205,158 +219,6 @@ int sse_auction_search(int *pr, int *P, int *ai0, int *ai1, int *a0, int *a1, in
 
 }
 
-int omp_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *fpr, omp_lock_t* pmux, int nodes, int arcs, int s, int t)
-{
-	int i, length = 1, j = t, k, m, l;
-	int la, maxla, argmaxla, cost, path_cost;
-	int cost_tab[nodes+1];
-
-	int index = -1;
-	int lockResult = 0;
-	List list = createList();
-	
-	for(i = 0; i <= nodes; i++) {
-		P[i] = INF;
-		pr[i] = 0;
-		cost_tab[i] = 0;
-	}
-	
-	if(check_s_t(s, t, P, nodes) != 0) {
-		return 1;
-	}
-
-	/* dodanie head do listy */
-	list.add(&list, t, path_cost);
-
-	while(P[s] == INF) {
-		/* sprawdzanie wynikow z innych watkow */
-		if(list.isEmpty(&list) == 0)
-		{
-			list.setCurrToHead(&list);
-			do
-			{
-				index = list.getCurr(&list);
-				if (fpr[index] != INF)
-				{
-					/* fpr[index] - koszt sciezki do i-tego wezla */
-					/* list.getCurrValue(&list) - policzona w innym watku sciezka z i do s */
-					return fpr[index] + list.getCurrValue(&list);
-				}
-			} while (list.getNext(&list) != -1);
-		}
-
-		maxla = 0 - INF;
-		argmaxla = -1;
-		k = -1;
-
-		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
-		for(i = 0; i < nodes; i++) {
-			if(ai[i][0] == j) {
-				k = a[i][1];		//k - indeks startowy krawedzi wychodzacych z j
-				//printf("i = %d ", i);
-				if(i < nodes - 1) {
-					m = ai[i+1][1];
-				}
-				else {
-					m = arcs;
-				}
-			}
-		}
-
-		/* wybor optymalnej krawedzi */
-		if(k != -1) {
-			for(i = k; i < m; i++) {
-
-				/* l - aktualnie przetwarzany potecjalny nastepny wierzcholek */
-				l = a[i][0];
-
-				/* la - cena tego wierzcholka minus koszt dotarcia do niego */
-				la = pr[l] - a[i][1];
-				//printf("la: %d %d %d\n", i, a[i][1], la);
-
-				/* wierzcholki w sciezce nie moga sie powtarzac */
-				if(la > maxla && P[l] == INF) {
-					//printf("nowy max: %d %d\n", l, a[i][1]);
-					maxla = la;		//nowy maksymalny la
-					argmaxla = l;		//numer wezla
-					cost = a[i][1];		//koszt potenjalnie dodawanej krawedzi
-				}
-			}
-		}
-
-		if(k == 1 || pr[j] > maxla || maxla == -INF) {
-			pr[j] = maxla;
-			if(j != t) {
-				P[j] = INF;
-				length = length - 1;
-				path_cost = path_cost - cost_tab[length];
-				cost_tab[length] = 0;	
-				/* usuwanie wezla i zdejmowanie lock */
-				list.remove_(&list, j);
-				//omp_unset_lock(&(pmux[j]));
-				k = j;
-				for(i = 0; i < nodes; i++) {
-					if(P[i] == length - 1) {
-						j = i;
-						break;
-					}
-				}
-			}
-		}
-		else {
-			P[argmaxla] = length;
-			j = argmaxla;
-			path_cost = path_cost + cost;
-			cost_tab[length] = cost;
-			length = length + 1;	
-			/* dodawanie wezla do list i ustawianie lock, 0 gdy juz ktos blokuje */
-			//lockResult = omp_test_lock(&(pmux[j]));
-			if (lockResult == 0)
-			{	
-				//odlokowanie blokowanych wezlow	
-				if (list.isEmpty(&list) == 0)
-				{
-					list.setCurrToHead(&list);
-					do
-					{
-						index = list.getCurr(&list);
-						//omp_unset_lock(&(pmux[index]));
-					} while (list.getNext(&list) != -1);
-				}
-				//czyszczenie listy
-				list.clear(&list);
-
-				return -2;
-			}
-			else if (lockResult == 1)
-			{
-				list.add(&list, j, path_cost);
-			}
-		}
-
-		if(argmaxla == s)
-		{
-			/* odlobkowanie wszystkich blokad */
-			if (list.isEmpty(&list) == 0)
-			{
-				list.setCurrToHead(&list);
-				do
-				{
-					index = list.getCurr(&list);
-					//omp_unset_lock(&(pmux[index]));
-				} while (list.getNext(&list) != -1);
-			}
-
-			/* wyczyszczenie listy */
-			list.clear(&list);
-
-			return path_cost;
-		}
-	}
-	return 0;
-
-}
-
 int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int arcs, int s, int t)
 {
 	int i, length = 1, j = t, k, m, l;
@@ -384,7 +246,7 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 		m = -1;
 
 		//printf("j = %d %d %d %d %d\n", j, ai[1][0], ai[1][1], a[1][0], a[1][1]);
-		printf("j = %d\n", j);
+		//printf("j = %d\n", j);
 
 		/* wyszukanie krawedzi wychodzacych z j w tabeli a */
 		for(i = 0; i < nodes; i++) {
@@ -469,106 +331,6 @@ int auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int nodes, int ar
 	return 0;
 }
 
-
-int auction_omp_search(int *pr, int *P, int (*a)[2], int(*ai)[2], int nodes, int arcs, int s, int t)
-{
-	int result;
-	int item, i, endloop = -1;
-	int fpr[nodes];
-	//omp_lock_t pmux[nodes];
-	//omp_lock_t qmux;
-	Queue queue = createQueue();
-	int finalResult = -1;
-
-	//omp_init_lock(&qmux);
-
-	printf("P1\n");
-
-	//#pragma omp parallel for
-	for(i = 0; i < nodes; ++i)
-	{
-		fpr[i] = INF;
-	}
-
-	//inicjalizacja kolejki
-	for(i = 0; i < nodes; ++i)
-	{
-		//omp_init_lock(&pmux[i]);
-		queue.push(&queue, i);
-	}
-
-	printf("P2 %d\n", nodes);
-
-	//#pragma omp parallel firstprivate(result, item, pr, P, a, nodes, arcs, s) shared(pmux, fpr, qmux)
-	{
-		do
-		{
-			printf("P3 %d %d %d %d\n", nodes, arcs, s, t);
-			/*omp_set_lock(&pmux);
-			printf("queue_size: %d\n", queue.size);
-			if(queue.size == 0) {
-				omp_unset_lock(&pmux);
-				endloop = i;			
-				break;
-			}
-			omp_unset_lock(&pmux);
-			*/
-			//dodac synchronizacje kolejki
-			//omp_set_lock(&qmux);
-			item = queue.pop(&queue);
-			//omp_unset_lock(&qmux);
-
-			printf("Auction_search\n");
-			//result = omp_auction_search(pr, P, a, ai, fpr, pmux, nodes, arcs, s, item);
-			printf("Result: %d\n", result);			
-
-			if (result == -2)
-			{
-				//wstaw na koniec kolejki gdy jest blokada
-				//omp_set_lock(&qmux);
-				queue.push(&queue, item);
-				//omp_unset_lock(&qmux);
-			}
-			else if (result == -1)
-			{
-				//usun z kolejki, usuwamy z kolejki robiac pop wiec nic tutaj nie trzeba robic
-				//nothing to write
-			}
-			else if (result == 0)
-			{
-				//s==t czyli usuwam z kolejki, usuwamy z kolejki robiac pop wiec nic tutaj nie trzeba robic
-				//nothing to write
-			}
-			else
-			{
-				//wstaw wynik do tablicy fpr
-				fpr[item] = result;
-			
-				if (item == t)
-				{
-					//omp_set_lock(&qmux);
-					queue.size = 0;
-					//omp_unset_lock(&qmux);
-					finalResult = result;
-					break;
-				}
-			}
-		}
-		while(queue.size != 0);
- 	}
-
-	for(i = 0; i < nodes; ++i)
-	{
-		//omp_destroy_lock(&pmux[i]);
-	}
-
-	//omp_destroy_lock(&qmux);
-	queue.queue_clear(&queue);
-
-	return finalResult;
-}
-
-
 int main(int argc, char* argv[])
 {
 	double time;
@@ -598,15 +360,10 @@ int main(int argc, char* argv[])
 	P = (int*)malloc((nodes+1)*sizeof(int));
 	printf("P0\n");
 
-	start = clock();
-
-	if(task == OMP) {
-		//omp_set_num_threads(1);
-	//auction_search(prices, P, network, nodes, arcs, source, tail);
-		auction_omp_search(prices, P, network, network_i, nodes, arcs, source, tail);
-	}
-	else if(task == SEQ) {
+	if(task == SEQ) {
+		start = clock();
 		auction_search(prices, P, network, network_i, nodes, arcs, source, tail);
+		end = clock();
 	}
 	else if(task == SSE) {
 		a0 = _mm_malloc(arcs*sizeof(int), 16);
@@ -627,7 +384,9 @@ int main(int argc, char* argv[])
 			Psse[i] = (int) INF;
 			prsse[i] = 0;
 		}
-		sse_auction_search(prsse, Psse, ai0, ai1, a0, a1, nodes, arcs, source, tail);
+		start = clock();
+		sse_auction_search(prsse, Psse, ai0, ai1, a0, a1, nodes, arcs, source, tail);	
+		end = clock();
 		_mm_free(a0);
 		_mm_free(a1);
 		_mm_free(ai0);
@@ -640,8 +399,6 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 	
-	end = clock();
-
 	time = ((double) (end - start)) / CLOCKS_PER_SEC;
 
 	printf("Czas wykonania programu: %5.1f [ms]\n", time*1000);

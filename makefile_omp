@@ -1,16 +1,21 @@
 CC=gcc
-CFLAGS = -msse4.1 -O
+CFLAGS = -fopenmp -O
 LFLAGS = -lm
-OBJS = auction.o
+OBJS = auction_omp.o
 
 auction: $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LFLAGS) 
 
-auction.o: auction.c
+auction.o: auction_omp.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 read_network.o: read_network.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+list.o: list.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+queue.o: queue.c
+	$(CC) $(CFLAGS) -c $< -o $@
 clean:
 	rm -f *.o
