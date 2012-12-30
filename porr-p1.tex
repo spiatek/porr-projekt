@@ -1,0 +1,65 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{ucs}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[polish]{babel}
+\usepackage{graphicx}
+\usepackage{subfig}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+\frenchspacing
+\sloppy
+\usepackage{geometry}
+\title{Programowanie Równoległe i Rozproszone\\Dokumentacja projektu 1}
+\author{Oskar Leszczyński, Szymon Piątek}
+\usepackage{geometry}
+\geometry{verbose,a4paper,tmargin=2cm,bmargin=2cm,lmargin=2.5cm,rmargin=2.5cm}
+\begin{document}
+\maketitle
+\section{Temat projektu}
+Tematem projektu jest porównanie efektywności zrównoleglonej metody aukcyjnej routingu z efektywnością algorytmu Dijkstry. W pierwszej części projektu zaimplementowane zostały algorytmy sekwencyjne Dijkstry i aukcyjny oraz zrównoleglone wersje algorytmu aukcyjnego: wykorzystująca instrukcje SSE (\textit{Streaming SIMD Extensions}) procesora Intela oraz wykorzystująca OpenMP.
+\section{Generator i reprezentacja sieci}
+W ramach projektu wykorzystany został generator Netgen. Programy testowano na sieciach o różnej wielkości i zagęszczeniu:
+\begin{itemize}
+\item 400 węzłów i 1500 krawędzi
+\item 1500 węzłów i 3600 krawędzi
+\item 1500 węzłów i 36000 krawędzi
+\end{itemize}
+
+Sieć reprezentowana jest za pomocą dwóch tablic. Pierwsza, o wymiarze $n \times 2$, w pierwszej kolumnie zawiera numery wierzchołków sieci, natomiast w drugiej - ich indeksy w drugiej tablicy. Druga tablica zawiera: w pierwszej kolumnie - numery wierzchołków, w drugiej - koszty krawędzi. Taka forma reprezentacji macierzy pozwala na znaczące przyspieszenie wykonania programów. Ponieważ generator Netgen zapisuje wygenerowaną sieć do pliku, konieczne było napisanie programu, który sczytuje zawartość pliku do docelowych struktur (plik read\_network.c).
+\section{Opis zaimplementowanych algorytmów}
+\subsection{Algorytm Dijkstry}
+...
+\subsection{Algorytm aukcyjny}
+...
+\subsection{Algorytm aukcyjny - zrównoleglenie za pomocą SSE}
+...
+\subsection{Algorytm aukcyjny - zrównoleglenie za pomocą OpenMP}
+Aby zrównoleglić algorytm aukcyjny przy wykorzystaniu dyrektyw OpenMP należy zmodyfikować odpowiednio algorytm sekwencyjny. Zrównoleglenie polega na uruchamianiu zmodyfikowanego algorytmu dla różnych węzłów końcowych t. Obliczenia zostają przyśpieszone, dzięki zapamiętywaniu wyników zakończonych wywołań algorytmu. Gdy, jeden z odpalonych algorytmów dojdzie do węzła, dla którego już obliczono najkrótszą ścieżkę do węzła startowego s, obliczenia zostają przerwane i wykorzystywany jest zapamiętany wynik co znacząco skraca czas znalezienia poszukiwanej ścieżki. Kolejne węzły końcowe są pobierane z kolejki, w której znajdują się na początku wszystkie węzły w grafie. Gdy ścieżka dla danego węzła końcowego t zostanie obliczona, wszystkie węzły znajdujące się w obliczonej ścieżce są usuwane z kolejki, ponieważ dla każdego w tych węzłów  obliczono już optymalną ścieżkę do węzła startowego s. Modyfikacja sekwencyjnego algorytmu aukcyjnego polega na dodaniu listy, w której przetrzymywane są indeksy węzłów dodanych do danej ścieżki oraz koszt dotarcia do określonego węzła (przetrzymywana jest ścieżka). Za każdym obiegiem pętli algorytmu sprawdzane jest czy w liście (w ścieżce) nie znajdują się przypadkiem węzeł, dla którego policzono już ścieżkę, jeśli jest taki węzeł, obliczenia zostają przerwane i z kolejki usuwane są wszystkie węzły znajdujące się w liście oraz w tablicy zapisywane są koszty dotarcia z danego węzła do węzła s. Funkcja zwraca sumę kosztu dotarcia z węzła t do znalezionego węzła oraz kosztu dotarcia do węzła s obliczonego przez inne wywołania funkcji. Aby zapewnić integralność danych pomiędzy różnymi wątkami wykonującymi zmodyfikowany algorytm, dostęp do kolejki z kolejnymi węzłami końcowymi t jak i do tablicy przechowującej już obliczone koszty jest synchronizowany tak aby w danej chwili do kolejki lub tablicy miał dostęp tylko jeden wątek programu.
+\section{Kompilacja (GCC) i uruchamianie programów pod systemem Linux}
+\textbf{Przykładowa zawartość pliku z parametrami sieci:}\\\\
+\texttt{13502460\\
+1 1500 1 1 3600 1 10000 1500000 0 0 0 0 0 0}\\
+
+kolejno: seed, od nowej linii: numer problemu (nie trzeba zmieniać), liczba węzłów, liczba source (powinno być 1), tail (powinno być 1), liczba krawędzi, minimalny koszt krawędzi, maksymalny koszt krawędzi, suma kosztów wszystkich krawędzi, potem nieistotne\\\\
+\textbf{Kompilacja i uruchomienie netgen:}\\\\
+\texttt{make -f makefile\_netgen\\
+./netgen < [plik\_z\_parametrami\_sieci] > [plik\_z\_siecią]}\\\\
+\textbf{Kompilacja i uruchomienie algorytmu Dijkstry:}\\\\
+\texttt{gcc -o dijkstra dijkstra.c\\
+./dijkstra [liczba\_krawędzi] [liczba\_węzłów] [plik\_z\_siecią] > [plik\_wyjściowy]}\\\\
+\textbf{Kompilacja i uruchomienie algorytmu aukcyjnego (sekwencyjnego lub SSE):}\\\\
+\texttt{make\\
+./auction [nr\_problemu] [liczba\_krawędzi] [liczba\_węzłów] [plik\_z\_siecią] > [plik\_wyjściowy]\\\\}
+Dla sekwencyjnego: numer problemu -- 1, dla SSE -- 2.\\\\
+\textbf{Kompilacja i uruchomienie algorytmu aukcyjnego (sekwencyjnego lub OpenMP):}\\\\
+\texttt{make -f makefile\_openmp\\
+./auction [nr\_problemu] [liczba\_krawędzi] [liczba\_węzłów] [plik\_z\_siecią] > [plik\_wyjściowy]\\\\}
+Dla sekwencyjnego: numer problemu -- 1, dla OpenMP -- 0.
+\section{Uzyskane wyniki}
+...
+\section{Wnioski}
+...
+\end{document}
