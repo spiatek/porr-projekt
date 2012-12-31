@@ -81,9 +81,41 @@ Dla sekwencyjnego: numer problemu -- 1, dla SSE -- 2.\\\\
 ./auction [nr\_problemu] [liczba\_krawędzi] [liczba\_węzłów] [plik\_z\_siecią] > [plik\_wyjściowy]\\\\}
 Dla sekwencyjnego: numer problemu -- 1, dla OpenMP -- 0.
 \section{Uzyskane wyniki}
-...
+Zostało sprawdzone, że algorytm aukcyjny znajduje taką samą najkrótszą ścieżkę z węzła t do s jak algotytm Dijkstry. Poniżej umieszczone zostało zestawienie wersji algorytmów i ich czasów wykonania. Są to uśrednione czasy z kilku prób (zwykle ok. 10).
+\begin{table}[h!b!p!]
+\caption{Zestawienie czasów wykonania zaimplementowanych algorytmów dla zadania szukania najkrótszych ścieżek od każdego węzła w grafie do zadanego.}
+\begin{center}
+\begin{tabular}{ | c | c | c | c |}
+\hline
+Algorytm & Liczba węzłow & Liczba krawędzi & Czas wykonania [ms] \\ \hline
+Dijkstra & 400 & 1500 & 0 \\ \hline
+Dijkstra & 1500 & 3600 & 20 \\ \hline
+Dijkstra & 1500 & 36000 & 20 \\ \hline
+Aukcyjny sekwencyjny & 400 & 1500 & 205.45 \\ \hline
+Aukcyjny sekwencyjny & 1500 & 3600 & 33353.75 \\ \hline
+Aukcyjny sekwencyjny & 1500 & 36000 & 27158.75 \\ \hline
+Aukcyjny SSE & 400 & 1500 & 302.72 \\ \hline
+Aukcyjny SSE & 1500 & 3600 & 34405 \\ \hline
+Aukcyjny SSE & 1500 & 36000 & 28046 \\ \hline
+Aukcyjny z kolejką & 400 & 1500 & 2.50 \\ \hline
+Aukcyjny z kolejką & 1500 & 3600 & 70 \\ \hline
+Aukcyjny z kolejką & 1500 & 36000 & 67.50 \\ \hline
+\end{tabular}
+\end{center}
+\end{table}
+\begin{figure}[h!b!p!]
+\centering
+\subfloat[]{\includegraphics[width=0.5\textwidth]{img/wykres36000}}\hfill              
+\subfloat[]{\includegraphics[width=0.5\textwidth]{img/wykres3600}}\\
+\subfloat[]{\includegraphics[width=0.5\textwidth]{img/wykres1500}}
+\caption{Wykresy pokazują jaka jest zależność czasu wykonania od liczby wątków. Widać, że zysk można zaobserwować dla liczby wątków większej niż 4, jednak algorytm działający na jednym wątku radzi sobie z problemem najszybciej.}
+\end{figure}
 \section{Wnioski}
-...
+Uzyskane wyniki pokazują, że algorytm aukcyjny zaimplementowany w sposób sekwencyjny znajduje najkrótsze ścieżki od danego węzła do wszystkich pozostałych w grafie w czasie o wiele dłuższym niż algorytm Dijkstry. Taka implementacja nie pozwala również na przyspieszenie obliczeń dzięki wykorzystaniu instrukcji SSE. Po zastosowaniu wektoryzacji dla dwóch zagnieżdżonych pętli, czas obliczeń nieznacznie wzrasta.
+
+Efektywność algorytmu aukcyjnego wzrasta dla implementacji z kolejką, w której przechowywane są numery węzłów startowych. Czas wykonania wciąż jest jednak nieco dłuższy niż w przypadku algorytmu Dijkstry. Można przypuszczać, że dla znacznie większych sieci niż te, które mogą być wygenerowane przez generator Netgen, taka implementacja algorytmu aukcyjnego okaże się co najmniej tak samo dobra jak algorytm Dijkstry.
+
+Nie zaobserwowano zysku z wykonywania obliczeń na kilku wątkach, choć widać wyraźnie, że dla liczby wątków większej niż 4 czas obliczeń zaczyna maleć.
 \begin{thebibliography}{1}
 \bibitem{auction}Andrzej Karbowski. Parallel Algorithms For Multicore Routers In Large Computer Networks - A Review. 2007.
 \end{thebibliography}
