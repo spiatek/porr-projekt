@@ -1,4 +1,4 @@
-__kernel void taskParallelAdd(__global int* FPR) 
+__kernel void taskParallelAdd(__global int* FPR, __global int (*a)[2], __global int (*ai)[2], __global int* pr, __global int* P) 
 {  
 	int i, length = 1, j = t, k, m, l;
 	int la, maxla, argmaxla, cost, path_cost = 0;

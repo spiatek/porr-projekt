@@ -7,6 +7,8 @@
 #include <CL/cl.h>
 #endif
 
+#include "read_network.c"
+
 #define MAX_SOURCE_SIZE (0x100000)
 #define NODES 1500
 #define ARCS 3600
@@ -66,7 +68,7 @@ int main()
     for (i = 0; i < NODES; i++) {
     	fpr[i] = INF;
 		P[i] = INF;
-		pr[i] = 0;
+		prices[i] = 0;
     }
 
     /* pobranie informacji o srodowisku */
@@ -112,7 +114,7 @@ int main()
     }
 
     /* skopiowanie wyniku do hosta */
-    ret = clEnqueueReadBuffer(command_queue, FPRmobj, CL_TRUE, 0, NODES*sizeof(float), C, 0, NULL, NULL);
+    ret = clEnqueueReadBuffer(command_queue, FPRmobj, CL_TRUE, 0, NODES*sizeof(float), fpr, 0, NULL, NULL);
 
     /* wyswietlenie wyniku */
 /*    for (i=0; i < 4; i++) {
