@@ -1,7 +1,7 @@
 /*
- * communication_mpi.c
+ * auction_mpi.c
  *
- *  Created on: 02-02-2013
+ *  Created on: 31-01-2013
  *      Author: spiatek
  */
 
