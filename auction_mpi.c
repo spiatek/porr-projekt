@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <math.h>
 
 #include "read_network.c"
 #include "queue.c"
@@ -51,23 +52,31 @@ int main(int argc, char *argv[])
   MPI_Request *request;
 
 	double time;
-	int *prices, *P;
-	int i, task, source, tail, nodes, arcs, threads;
+	int *prices, *P, *cost_tab, *fpr;
+	int i, j, k, source=399, tail=1, nodes=400, arcs=1500;
+	int dest, src;
+	int *dest_ptr, *src_ptr;
 	int (*network)[2], (*network_i)[2];
 	clock_t start, end;
-	char *filename;
+	//char *filename;
+	int result;
+	int item, endloop = -1;
+	int finalResult = -1;
 
-	task = atoi(argv[1]);
-	nodes = atoi(argv[2]);
+	int length = 1, m, l, t, index;
+	int la, maxla, argmaxla, cost, path_cost = 0;
+
+/*	nodes = atoi(argv[2]);
 	arcs = atoi(argv[3]);
 	filename = argv[4];
-	threads = atoi(argv[5]);
-
+*/
 	  MPI_Init(&argc, &argv);
 	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);		//identyfikacja procesu
 	  MPI_Comm_size(MPI_COMM_WORLD, &size);		//podanie liczby procesów w komunikatorze
 
   /* Manager */
+
+	  printf("RANK %d SIZE %d\n", rank, size);
 
   if (rank == 0) {
 
@@ -76,92 +85,84 @@ int main(int argc, char *argv[])
     workers = size - 1;
 	network = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
 	network_i = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));
-	read_network(filename, &source, &tail, &nodes, &arcs, network, network_i);
+	dest_ptr = (int*)malloc(sizeof(int));
+	src_ptr = (int*)malloc(sizeof(int));
+	prices = (int*)malloc((nodes+1)*sizeof(int));
+    request = malloc(sizeof(MPI_Request) * workers);	//tyle ile workersów
+	fpr = (int*)malloc((nodes+1)*sizeof(int));
+
+	read_network(/*filename*/"outp", &source, &tail, &nodes, &arcs, network, network_i);
 
 	printf("%d %d %d %d\n", network_i[0][0], network_i[0][1], network[0][0], network[0][1]);
+	printf("size of communicator: %d\n", size);
 
 	start = clock();
 
-	int result;
-	int item, i, endloop = -1;
-	int fpr[nodes];
+		//Queue queue = createQueue();
 
-	Queue queue = createQueue();
-	int finalResult = -1;
-
-	for(i = 0; i < nodes; ++i)
+	for(i = 0; i <= nodes; ++i)
 	{
 		fpr[i] = INF;
 	}
-
+/*
 	for(i = nodes - 2; i > 0; --i)
 	{
 		queue.push(&queue, i);		//do kolejki wrzucam kolejne numery węzłów
 	}
+*/
 
-	do
+	for(i = 0; i < nodes; i += workers)
 	{
-		item = queue.pop(&queue);
-		if (item >= 0)
-		{
-			printf("Auction_search for tail=%d\n", item);
+		for(j = 0; j < workers; j++) {
+			dest = j + i + 1;
+			dest_ptr[0] = dest;
+			printf("Auction_search for tail=%d\n", dest);
+			MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+			//MPI_Isend(prices, nodes+1, MPI_INT, dest, tag + dest, MPI_COMM_WORLD, &request[j]);
+			printf("Communicate sent\n");
+		}
 
-			int s_tag = item % workers;
+		MPI_Waitall(workers, request, MPI_STATUSES_IGNORE);
 
-			MPI_Send(&item, 1, MPI_INT, s_tag, tag + s_tag, MPI_COMM_WORLD);
-			MPI_Recv(&result, 1, MPI_INT, s_tag, tag + s_tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		for(j = 0; j < workers; j++) {
+			src = j + i + 1;
+			MPI_Irecv(fpr + src, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+			printf("Communicate received %d\n", fpr[src]);
+			//fpr[src-1] = src_ptr[0];
 
-			if (result == -2)			//jeśli result nie policzony, wrzucam dalej do kolejki
-			{
-				queue.push(&queue, item);
-			}
-			else if (result == -1) {}
-			else if (result == 0) {}
-			else
-			{
-				fpr[item] = result;
-				for(i = 0; i < nodes; i++) {
-					if(fpr[i] != INF) {
-						printf("FFFF %i %d ", i, fpr[i]);
-					}
-				}
-				if (item == tail)
-				{
-					queue.size = 0;
-					finalResult = result;
-					break;
+			for(k = 1; k <= nodes; k++) {
+				if(fpr[k] != INF) {
+					printf("FFFF %i %d ", k, fpr[k]);
 				}
 			}
 		}
-		//printf("&&& end while for Thread = %d %d\n", omp_get_thread_num(), fpr[t]);
+		//printf("AFFafa\n");
+		//MPI_Waitall(workers, request, MPI_STATUSES_IGNORE);
+		//printf("ssafa\n");
 	}
-	while(queue.size != 0);
 
-		end = clock();
+	end = clock();
 
-    	time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
 
-    	printf("Czas wykonania programu: %5.1f [ms]\n", time*1000);
+    printf("Czas wykonania programu: %5.1f [ms]\n", time*1000);
 
-    	free(network);
-    	free(network_i);
-    	free(prices);
-    	free(P);
-
+    free(network);
+    free(network_i);
     free(request);
   }
 
   /* Workers */
 
   else {
-		int i, length = 1, k, m, l;
-		int la, maxla, argmaxla, cost, path_cost = 0;
-		int *cost_tab;
+		//printf("::WORKER %d STARTED::", rank);
 
 		prices = (int*)malloc((nodes+1)*sizeof(int));
 		P = (int*)malloc((nodes+1)*sizeof(int));
 		cost_tab = (int*)malloc((nodes+1)*sizeof(int));
+		dest_ptr = (int*)malloc(sizeof(int));
 
+		//printf("::MEMORY ALLOCATED FOR %d::", rank);
 		/* wypelnienie wartosciami poczatkowymi tablicy ze sciezka, tablicy z cenami wezlow */
 		/* oraz tablicy z kosztami dojscia do wezlow w sciezce */
 		/* sciezka - dla poszczegolnych wezlow wartosc to pozycja w sciezce */
@@ -171,107 +172,119 @@ int main(int argc, char *argv[])
 			cost_tab[i] = 0;
 		}
 
-		int t;
-		int j = t;
-		MPI_Recv(&t, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		do
+		{
+			MPI_Recv(&result, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			//printf("::GOT COMMUNICATE %d FROM 0::", rank);
+			t = result;
+			j = t;
 
-		/* sprawdzenie poprawnosci source i tail */
-		if(check_s_t(source, t, P, nodes) != 0) {
-			return 1;
-		}
-
-		while(P[source] == INF) {
-			maxla = 0 - INF;
-			argmaxla = -1;
-			k = -1;
-			m = -1;
-
-			//printf("j = %d %d %d %d %d\n", j, ai[1][0], ai[1][1], a[1][0], a[1][1]);
-		//	printf("j = %d\n", j);
-
-			/* wyszukanie krawedzi wychodzacych z j w tabeli a */
-			for(i = 0; i < nodes; i++) {
-				if(network_i[i][0] == j) {
-					k = network_i[i][1];		//k - indeks startowy krawedzi wychodzacych z j
-					//printf("i = %d ", i);
-					if(i < nodes - 1) {
-						m = network_i[i+1][1];
-					}
-					else {
-						m = arcs;
-					}
-				}
+			/* sprawdzenie poprawnosci source i tail */
+			if(check_s_t(source, t, P, nodes) != 0) {
+				return 1;
 			}
 
-	//		printf("k=%d m=%d\n", k, m);
+			while(P[source] == INF) {
+				maxla = 0 - INF;
+				argmaxla = -1;
+				k = -1;
+				m = -1;
 
-			/* wybor optymalnej krawedzi */
-			if(k != -1) {
-				for(i = k; i < m; i++) {
-	//				printf("for loop i=%d\n",i);
+				//printf("j = %d %d %d %d %d\n", j, ai[1][0], ai[1][1], a[1][0], a[1][1]);
+			//	printf("j = %d\n", j);
 
-					/* l - aktualnie przetwarzany potecjalny nastepny wierzcholek */
-					l = network[i][0];
-
-					/* la - cena tego wierzcholka minus koszt dotarcia do niego */
-					la = prices[l] - network[i][1];
-					//printf("la: %d %d %d\n", i, a[i][1], la);
-
-					/* wierzcholki w sciezce nie moga sie powtarzac */
-					if(la > maxla && P[l] == INF) {
-						//printf("nowy max: %d %d\n", l, a[i][1]);
-						maxla = la;		//nowy maksymalny la
-						argmaxla = l;		//numer wezla
-						cost = network[i][1];		//koszt potenjalnie dodawanej krawedzi
-					}
-				}
-			}
-		//	printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
-
-			/* skrocenie sciezki */
-			if(k == 1 || prices[j] > maxla || maxla == -INF) {
-
-				/* uaktualnienie ceny */
-				prices[j] = maxla;
-
-				/* sciezka jednoelementowa nie jest skracana */
-				if(j != t) {
-
-					/* uaktualnienie sciezki */
-					P[j] = INF;
-					length = length - 1;
-					path_cost = path_cost - cost_tab[length];
-					cost_tab[length] = 0;
-
-					/* powrot do poprzedniego wierzcholka w sciezce (j), k - odcinany */
-					k = j;
-					for(i = 0; i < nodes; i++) {
-						if(P[i] == length - 1) {
-							j = i;
-							break;
+				/* wyszukanie krawedzi wychodzacych z j w tabeli a */
+				for(i = 0; i < nodes; i++) {
+					if(network_i[i][0] == j) {
+						k = network_i[i][1];		//k - indeks startowy krawedzi wychodzacych z j
+						//printf("i = %d ", i);
+						if(i < nodes - 1) {
+							m = network_i[i+1][1];
+						}
+						else {
+							m = arcs;
 						}
 					}
 				}
-			}
-			/* przedluzenie sciezki */
-			else {
-				P[argmaxla] = length;
-				j = argmaxla;
-				path_cost = path_cost + cost;
-				cost_tab[length] = cost;
-				length = length + 1;
 
-				/* sciezka doszla do wierzcholka startowego => koniec */
-				if(argmaxla == source)
-				{
-					//printf("result= %d\n", path_cost);
-					MPI_Send(&path_cost, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
+		//		printf("k=%d m=%d\n", k, m);
+
+				/* wybor optymalnej krawedzi */
+				if(k != -1) {
+					for(i = k; i < m; i++) {
+		//				printf("for loop i=%d\n",i);
+
+						/* l - aktualnie przetwarzany potecjalny nastepny wierzcholek */
+						l = network[i][0];
+
+						/* la - cena tego wierzcholka minus koszt dotarcia do niego */
+						la = prices[l] - network[i][1];
+						//printf("la: %d %d %d\n", i, a[i][1], la);
+
+						/* wierzcholki w sciezce nie moga sie powtarzac */
+						if(la > maxla && P[l] == INF) {
+							//printf("nowy max: %d %d\n", l, a[i][1]);
+							maxla = la;		//nowy maksymalny la
+							argmaxla = l;		//numer wezla
+							cost = network[i][1];		//koszt potenjalnie dodawanej krawedzi
+						}
+					}
+				}
+			//	printf("pr[j] = %d, maxla = %d, argmaxla = %d\n", pr[j], maxla, argmaxla);
+
+				/* skrocenie sciezki */
+				if(k == 1 || prices[j] > maxla || maxla == -INF) {
+
+					/* uaktualnienie ceny */
+					prices[j] = maxla;
+
+					/* sciezka jednoelementowa nie jest skracana */
+					if(j != t) {
+
+						/* uaktualnienie sciezki */
+						P[j] = INF;
+						length = length - 1;
+						path_cost = path_cost - cost_tab[length];
+						cost_tab[length] = 0;
+
+						/* powrot do poprzedniego wierzcholka w sciezce (j), k - odcinany */
+						k = j;
+						for(i = 0; i < nodes; i++) {
+							if(P[i] == length - 1) {
+								j = i;
+								break;
+							}
+						}
+					}
+				}
+				/* przedluzenie sciezki */
+				else {
+					P[argmaxla] = length;
+					j = argmaxla;
+					path_cost = path_cost + cost;
+					cost_tab[length] = cost;
+					length = length + 1;
+
+					/* sciezka doszla do wierzcholka startowego => koniec */
+					if(argmaxla == source)
+					{
+						//printf("result= %d\n", path_cost);
+						path_cost=1;
+						MPI_Send(&path_cost, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
+					}
 				}
 			}
+			//printf("no result\n");
+			//path_cost = INF;
+			//path_cost=2;
+			//MPI_Send(&path_cost, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
 		}
-		printf("no result\n");
-		path_cost = INF;
-		MPI_Send(&path_cost, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
+		while(result < nodes-size+1);
+
+    	free(prices);
+    	free(P);
+    	free(cost_tab);
+    	free(dest_ptr);
   }
 
   MPI_Finalize();
