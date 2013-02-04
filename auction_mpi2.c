@@ -189,7 +189,7 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 	
 	
 	for(i = 0; i < workers; i++) {
-		finish[i] = 0;
+		finish[i] = 1;
 	}
 	
 	/* wypelnienie wartosciami poczatkowymi tablicy ze sciezka, tablicy z cenami wezlow */
@@ -227,17 +227,18 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 							MPI_Iprobe(j + 1, tag + j + 1, MPI_COMM_WORLD, &flag, &status[j]);
 							if (flag != 0)
 							{
-								MPI_Irecv(&result, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+								MPI_Irecv(&result, 2, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
 								printf("Communicate received %d for t=%d\n", result.path_cost, result.t);
 								fpr[result.t] = result.path_cost;
 								finish[j] = 1;
+								printf("AAAAAAAAAAAAAAAAAAAAAAAAAaa\n");
 								//fpr[src-1] = src_ptr[0];
 
-	//							for(k = 1; k <= nodes; k++) {
-	//								if(fpr[k] != INF) {
-	//									printf("FFFF %i %d ", k, fpr[k]);
-	//								}
-	//							}
+								for(k = 1; k <= nodes; k++) {
+									if(fpr[k] != INF) {
+										printf("FFFF %i %d ", k, fpr[k]);
+									}
+								}
 							}
 						}
 		
@@ -327,19 +328,31 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 								/* zakonczenie pracy workerow */
 								for(j = 0; j < workers; j++) 
 								{
-									while (flag != 0)
+									flag = 0;
+									while (flag == 0)
 									{
-										MPI_Iprobe(j + 1, tag + j + 1, MPI_COMM_WORLD, &flag, &status[j]);
 										
-										if (flag != 0)
+										if (finish[j] == 0)
 										{
-											MPI_Irecv(&result, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
-											printf("Communicate received %d for t=%d\n", result.path_cost, result.t);
-											fpr[result.t] = result.path_cost;
+											MPI_Iprobe(j + 1, tag + j + 1, MPI_COMM_WORLD, &flag, &status[j]);
+											if (flag != 0)
+											{
+												MPI_Irecv(&result, 2, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+												printf("Communicate received %d for t=%d\n", result.path_cost, result.t);
+												fpr[result.t] = result.path_cost;
+												finish[j] = 1;
+												dest_ptr[0] = -1;
+												printf("Auction_search send end message %d\n", dest_ptr[0]);
+												MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+											}
+										}
+										else if (finish[j] == 0)
+										{
 											finish[j] = 1;
 											dest_ptr[0] = -1;
 											printf("Auction_search send end message %d\n", dest_ptr[0]);
 											MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+											flag = 1;
 										}
 									}						
 								}
@@ -402,24 +415,36 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 				list.clear(&list);
 			
 				/* zakonczenie pracy workerow*/
-						for(j = 0; j < workers; j++) 
-						{
-							while (flag != 0)
-							{
-								MPI_Iprobe(j + 1, tag + j + 1, MPI_COMM_WORLD, &flag, &status[j]);
-								
-								if (flag != 0)
+								for(j = 0; j < workers; j++) 
 								{
-									MPI_Irecv(&result, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
-									printf("Communicate received %d for t=%d\n", result.path_cost, result.t);
-									fpr[result.t] = result.path_cost;
-									finish[j] = 1;
-									dest_ptr[0] = -1;
-									printf("Auction_search send end message %d\n", dest_ptr[0]);
-									MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+									flag = 0;
+									while (flag == 0)
+									{
+										
+										if (finish[j] == 0)
+										{
+											MPI_Iprobe(j + 1, tag + j + 1, MPI_COMM_WORLD, &flag, &status[j]);
+											if (flag != 0)
+											{
+												MPI_Irecv(&result, 2, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+												printf("Communicate received %d for t=%d\n", result.path_cost, result.t);
+												fpr[result.t] = result.path_cost;
+												finish[j] = 1;
+												dest_ptr[0] = -1;
+												printf("Auction_search send end message %d\n", dest_ptr[0]);
+												MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+											}
+										}
+										else if (finish[j] == 1)
+										{
+											finish[j] = 1;
+											dest_ptr[0] = -1;
+											printf("Auction_search send end message %d\n", dest_ptr[0]);
+											MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
+											flag = 1;
+										}
+									}						
 								}
-							}						
-						}
 			
 				return path_cost;
 			}
@@ -537,7 +562,7 @@ int main(int argc, char *argv[])
 			//path_cost = 1;
 			result.t = request_arg;
 			result.path_cost = path_cost;
-			MPI_Send(&result, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
+			MPI_Send(&result, 2, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
 		} while(result.t < nodes-size+1);
 
     	free(prices);
