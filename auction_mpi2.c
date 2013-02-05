@@ -15,7 +15,7 @@
 #include "list.c"
 
 #define INF 999999
- 
+
  struct t_result {
 	 int path_cost;
 	 int t;
@@ -465,11 +465,17 @@ int main(int argc, char *argv[])
 
 	double time;
 	int *prices, *P, *cost_tab, *fpr;
-	int i, j, k, source=400, tail=1, nodes=400, arcs=1500;
+	int i, j, k, source, tail=1, nodes, arcs;
 	int dest, src;
 	int *dest_ptr, *src_ptr;
 	int (*network)[2], (*network_i)[2];
 	clock_t start, end;
+	char *filename;
+
+	source = atoi(argv[1]);
+	nodes = atoi(argv[1]);
+	arcs = atoi(argv[2]);
+	filename = argv[3];	
 
 	Result result;
 	int request_arg;
@@ -481,7 +487,7 @@ int main(int argc, char *argv[])
 
 	network = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));		//przydzial pamieci dla tablicy z grafem
 	network_i = (int (*)[2])malloc((arcs+nodes)*2*sizeof(int));
-	read_network(/*filename*/"outp", &source, &tail, &nodes, &arcs, network, network_i);
+	read_network(filename, &source, &tail, &nodes, &arcs, network, network_i);
 
 	  MPI_Init(&argc, &argv);
 	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);		//identyfikacja procesu
