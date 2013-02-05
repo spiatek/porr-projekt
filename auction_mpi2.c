@@ -220,7 +220,7 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 		argmaxla = -1;
 		k = -1;
 		m = -1;
-
+					if(finish[j] == 0) {
 						/* odbieranie danych od worker*/
 						for(j = 0; j < workers; j++) 
 						{
@@ -236,18 +236,20 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 
 								for(k = 1; k <= nodes; k++) {
 									if(fpr[k] != INF) {
-										printf("FFFF %i %d ", k, fpr[k]);
+										//printf("FFFF %i %d ", k, fpr[k]);
 									}
 								}
 							}
 						}
-		
+					}
 						/* wysylanie danych do worker */
 						for(j = 0; j < workers; j++) {
 							
 							if (finish[j] == 1)
 							{
 								++node_count;
+								if (node_count >= nodes)
+									break;
 								dest_ptr[0] = node_count;
 								printf("Auction_search for tail=%d\n", dest_ptr[0]);
 								MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
@@ -346,7 +348,7 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 												MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
 											}
 										}
-										else if (finish[j] == 0)
+										else if (finish[j] == 1)
 										{
 											finish[j] = 1;
 											dest_ptr[0] = -1;
@@ -439,7 +441,7 @@ int main_single_auction_search(int *pr, int *P, int (*a)[2], int (*ai)[2], int *
 										{
 											finish[j] = 1;
 											dest_ptr[0] = -1;
-											printf("Auction_search send end message %d\n", dest_ptr[0]);
+											printf("Auction_search send end message %d %d\n", dest_ptr[0], j + 1);
 											MPI_Isend(dest_ptr, 1, MPI_INT, j + 1, tag + j + 1, MPI_COMM_WORLD, &request[j]);
 											flag = 1;
 										}
@@ -556,14 +558,16 @@ int main(int argc, char *argv[])
 		do
 		{
 			MPI_Recv(&request_arg, 1, MPI_INT, 0, tag + rank, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			if (request_arg == -1)
+			if (request_arg == -1) {
+				printf("END MESSAGE\n");
 				break;
+			}
 			path_cost = single_auction_search(prices, P, cost_tab, network, network_i, nodes, arcs, source, request_arg);
 			//path_cost = 1;
 			result.t = request_arg;
 			result.path_cost = path_cost;
 			MPI_Send(&result, 2, MPI_INT, 0, tag + rank, MPI_COMM_WORLD);
-		} while(result.t < nodes-size+1);
+		} while(result.t < nodes);
 
     	free(prices);
     	free(P);
